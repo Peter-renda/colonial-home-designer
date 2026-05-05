@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>BOM Cart Filler</h1>
+
+    <label class="file">
+      <input type="file" id="file" accept=".csv,text/csv" />
+      <span>Choose BOM CSV…</span>
+    </label>
+
+    <div id="summary" class="summary hidden"></div>
+
+    <button id="run" disabled>Add all items to cart</button>
+
+    <ul id="log" class="log"></ul>
+
+    <details class="help">
+      <summary>CSV format</summary>
+      <p>Required columns: <code>url</code>, <code>quantity</code>.</p>
+      <p>Any other column is treated as a product option (e.g. <code>color</code>, <code>size</code>, <code>finish</code>).</p>
+      <pre>url,quantity,color,size
+https://www.homedepot.com/p/.../1000,2,White,10 ft
+https://www.lowes.com/pd/.../2000,1,,</pre>
+    </details>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

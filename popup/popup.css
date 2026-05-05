@@ -1,0 +1,64 @@
+:root {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+body {
+  width: 360px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  color: #1a1a1a;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+
+.file {
+  display: block;
+  border: 1px dashed #b5b5b5;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  background: #fafafa;
+}
+.file input { display: none; }
+.file span { color: #555; }
+
+.summary {
+  margin: 10px 0;
+  padding: 8px;
+  background: #f1f6ff;
+  border-radius: 6px;
+}
+.hidden { display: none; }
+
+button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+button[disabled] { background: #9bb6ec; cursor: not-allowed; }
+
+.log {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: 200px;
+  overflow: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.log li { padding: 3px 0; border-bottom: 1px solid #eee; }
+.log .ok { color: #137333; }
+.log .err { color: #b00020; }
+
+.help { margin-top: 12px; color: #555; font-size: 12px; }
+.help pre { background: #f5f5f5; padding: 6px; border-radius: 4px; overflow: auto; }
