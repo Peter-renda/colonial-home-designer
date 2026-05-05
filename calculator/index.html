@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BOM — Foundation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+    }
+
+    .page-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: #1e5799;
+      color: #fff;
+      display: inline-block;
+      padding: 6px 16px 6px 12px;
+      border-radius: 4px 4px 0 0;
+      margin-bottom: 0;
+      letter-spacing: 0.02em;
+    }
+
+    .main-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Two-column layout */
+    .columns {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .col-bom   { flex: 1 1 0; min-width: 0; }
+    .col-side  { flex: 0 0 260px; display: flex; flex-direction: column; gap: 16px; }
+
+    @media (max-width: 720px) {
+      .columns { flex-direction: column; }
+      .col-side { flex: none; width: 100%; }
+    }
+
+    /* ── BOM Table ─────────────────────────────────────────── */
+    .bom-table-wrap {
+      background: #fff;
+      border-radius: 0 8px 8px 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+      overflow: hidden;
+    }
+
+    table.bom {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    table.bom thead tr {
+      background: #1e5799;
+      color: #fff;
+    }
+
+    table.bom thead th {
+      padding: 9px 12px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-align: left;
+    }
+
+    table.bom thead th.right { text-align: right; }
+
+    table.bom tbody tr { border-bottom: 1px solid #eef0f4; }
+    table.bom tbody tr:last-child { border-bottom: none; }
+
+    table.bom tbody td {
+      padding: 9px 12px;
+      vertical-align: middle;
+    }
+
+    table.bom .item-name  { color: #222; font-weight: 500; }
+    table.bom .num        { text-align: right; font-variant-numeric: tabular-nums; }
+    table.bom .muted      { color: #999; font-size: 0.82rem; }
+
+    /* fixed-cost rows (labor, equipment) */
+    tr.fixed-cost td { background: #f0faf0; }
+
+    /* total row */
+    tr.total-row td {
+      background: #fff3cd;
+      font-weight: 700;
+      font-size: 0.97rem;
+      border-top: 2px solid #e6c200;
+      padding-top: 11px;
+      padding-bottom: 11px;
+    }
+
+    /* URL input inside table */
+    .url-input {
+      width: 100%;
+      padding: 5px 8px;
+      border: 1.5px solid #d8dde6;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      color: #1a1a2e;
+      background: #fafbfc;
+      min-width: 160px;
+    }
+    .url-input:focus {
+      outline: none;
+      border-color: #1e5799;
+      background: #fff;
+    }
+
+    /* ── Side cards ────────────────────────────────────────── */
+    .side-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+      overflow: hidden;
+    }
+
+    .side-card-title {
+      background: #1e5799;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 7px 12px;
+    }
+
+    .side-card-body { padding: 14px 12px; }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .field-row:last-child { margin-bottom: 0; }
+
+    .field-row label {
+      font-size: 0.83rem;
+      color: #555;
+      flex: 1;
+    }
+
+    .field-row .input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .field-row .unit-tag {
+      font-size: 0.75rem;
+      color: #999;
+      white-space: nowrap;
+    }
+
+    input[type="number"] {
+      width: 80px;
+      padding: 5px 7px;
+      border: 1.5px solid #d8dde6;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      text-align: right;
+      color: #1a1a2e;
+      background: #fafbfc;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #1e5799;
+      background: #fff;
+    }
+
+    /* ── Export bar ────────────────────────────────────────── */
+    .export-bar {
+      margin-top: 14px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .export-note {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 20px;
+      background: #1e5799;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-export:hover  { background: #174580; }
+    .btn-export:active { transform: scale(0.98); }
+    .btn-export svg {
+      width: 15px; height: 15px;
+      fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+<div class="main-wrap">
+
+  <div class="page-title">BILL OF MATERIALS — Foundation</div>
+
+  <div class="columns">
+
+    <!-- ── BOM Table ─────────────────────────────────────── -->
+    <div class="col-bom">
+      <div class="bom-table-wrap">
+        <table class="bom">
+          <thead>
+            <tr>
+              <th>Item (unit)</th>
+              <th class="right">Qty</th>
+              <th class="right">Price / Unit</th>
+              <th class="right">Line Total</th>
+              <th>Order URL</th>
+            </tr>
+          </thead>
+          <tbody id="bom-body">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="export-bar">
+        <span class="export-note">Only rows with a URL are included in the export.</span>
+        <button class="btn-export" id="export-btn">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Side panel ──────────────────────────────────────── -->
+    <div class="col-side">
+
+      <!-- Inputs -->
+      <div class="side-card">
+        <div class="side-card-title">Inputs</div>
+        <div class="side-card-body">
+          <div class="field-row">
+            <label for="sqFt">Sq ft</label>
+            <div class="input-wrap">
+              <input type="number" id="sqFt" value="1850" min="0" step="1" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="thicknessInches">Thickness</label>
+            <div class="input-wrap">
+              <input type="number" id="thicknessInches" value="3" min="1" step="0.5" />
+              <span class="unit-tag">in</span>
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="footerLengthFt">Footer length</label>
+            <div class="input-wrap">
+              <input type="number" id="footerLengthFt" value="230" min="0" step="1" />
+              <span class="unit-tag">ft</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unit Costs -->
+      <div class="side-card">
+        <div class="side-card-title">Costs</div>
+        <div class="side-card-body">
+          <div class="field-row">
+            <label for="concretePerYard">Concrete / yard</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="concretePerYard" value="150" min="0" step="1" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="stonePerTon">ABC stone / ton</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="stonePerTon" value="56" min="0" step="1" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="rebarPerStick">Rebar / linear ft</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="rebarPerStick" value="8" min="0" step="0.25" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="rigidInsulationPerSheet">Rigid insulation (R5)</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="rigidInsulationPerSheet" value="32" min="0" step="1" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="vaporBarrierPer">Vapor barrier (2000 sq ft)</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="vaporBarrierPer" value="127" min="0" step="1" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fixed Costs -->
+      <div class="side-card">
+        <div class="side-card-title">Fixed Costs</div>
+        <div class="side-card-body">
+          <div class="field-row">
+            <label for="labor">Labor</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="labor" value="1500" min="0" step="50" />
+            </div>
+          </div>
+          <div class="field-row">
+            <label for="equipmentRental">Equipment rental</label>
+            <div class="input-wrap">
+              <span class="unit-tag">$</span>
+              <input type="number" id="equipmentRental" value="1000" min="0" step="50" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- .col-side -->
+  </div><!-- .columns -->
+</div><!-- .main-wrap -->
+
+<script>
+  // ── Item definitions ──────────────────────────────────────────────────────
+  // fixed: true  → qty is blank, line total = the fixed cost input directly
+  // fixedKey     → which input holds the dollar amount
+  // qtyFn        → function(v) returning calculated quantity
+  // costFn       → function(qty, v) returning line total (for non-fixed items)
+
+  const ITEMS = [
+    {
+      key: "concrete",
+      label: "Concrete",
+      unit: "cu yd",
+      qtyFn: v => Math.ceil((v.sqFt * (v.thicknessInches / 12)) / 27),
+      costFn: (qty, v) => qty * v.concretePerYard,
+      priceLabel: v => fmt(v.concretePerYard),
+    },
+    {
+      key: "rebar",
+      label: "#4 Rebar (10’ sticks)",
+      unit: "sticks",
+      qtyFn: v => v.footerLengthFt,
+      // $8/linear ft × 10 ft/stick = $80/stick, but spreadsheet shows $8/stick
+      // Matching the spreadsheet: $8 per stick
+      costFn: (qty, v) => qty * v.rebarPerStick,
+      priceLabel: v => fmt(v.rebarPerStick),
+    },
+    {
+      key: "labor",
+      label: "Labor",
+      unit: "",
+      fixed: true,
+      fixedKey: "labor",
+    },
+    {
+      key: "stone",
+      label: "ABC Stone",
+      unit: "tons",
+      qtyFn: v => Math.ceil(v.sqFt * 0.007),
+      costFn: (qty, v) => qty * v.stonePerTon,
+      priceLabel: v => fmt(v.stonePerTon),
+    },
+    {
+      key: "vapor",
+      label: "Vapor Barrier (2000 sq ft)",
+      unit: "rolls",
+      qtyFn: v => Math.ceil(v.sqFt / 2000),
+      costFn: (qty, v) => qty * v.vaporBarrierPer,
+      priceLabel: v => fmt(v.vaporBarrierPer),
+    },
+    {
+      key: "equip",
+      label: "Equipment Rental",
+      unit: "",
+      fixed: true,
+      fixedKey: "equipmentRental",
+    },
+    {
+      key: "rigid",
+      label: "Rigid Insulation (4×12 sheets)",
+      unit: "sheets",
+      // 4×12 = 48 sq ft per sheet
+      qtyFn: v => Math.ceil(v.sqFt / 48),
+      costFn: (qty, v) => qty * v.rigidInsulationPerSheet,
+      priceLabel: v => fmt(v.rigidInsulationPerSheet),
+    },
+    {
+      key: "sidewall",
+      label: "Sidewall Insulation (4×8 sheets)",
+      unit: "sheets",
+      // footer perimeter × 2 ft wall height ÷ 32 sq ft per sheet
+      qtyFn: v => Math.ceil((v.footerLengthFt * 2) / 32),
+      costFn: (qty, v) => qty * v.rigidInsulationPerSheet,
+      priceLabel: v => fmt(v.rigidInsulationPerSheet),
+    },
+  ];
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function getNum(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+  function readValues() {
+    return {
+      sqFt:                    getNum("sqFt"),
+      thicknessInches:         getNum("thicknessInches"),
+      footerLengthFt:          getNum("footerLengthFt"),
+      concretePerYard:         getNum("concretePerYard"),
+      stonePerTon:             getNum("stonePerTon"),
+      rebarPerStick:           getNum("rebarPerStick"),
+      rigidInsulationPerSheet: getNum("rigidInsulationPerSheet"),
+      vaporBarrierPer:         getNum("vaporBarrierPer"),
+      labor:                   getNum("labor"),
+      equipmentRental:         getNum("equipmentRental"),
+    };
+  }
+
+  function fmt(n) {
+    return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  function fmtQty(n) { return n % 1 === 0 ? n.toLocaleString() : n.toFixed(2); }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function buildTable() {
+    const tbody = document.getElementById("bom-body");
+    tbody.innerHTML = ITEMS.map(it => `
+      <tr id="row-${it.key}" class="${it.fixed ? "fixed-cost" : ""}">
+        <td class="item-name">${it.label}</td>
+        <td class="num" id="qty-${it.key}"></td>
+        <td class="num muted" id="pu-${it.key}"></td>
+        <td class="num" id="lt-${it.key}"></td>
+        <td><input class="url-input" type="url" id="url-${it.key}"
+              placeholder="https://www.homedepot.com/p/…" /></td>
+      </tr>
+    `).join("") + `
+      <tr class="total-row">
+        <td colspan="3">Total</td>
+        <td class="num" id="grand-total-cell"></td>
+        <td></td>
+      </tr>
+    `;
+  }
+
+  function update() {
+    const v = readValues();
+    let grand = 0;
+
+    ITEMS.forEach(it => {
+      let qty, lineTotal, priceUnit;
+
+      if (it.fixed) {
+        qty = null;
+        lineTotal = v[it.fixedKey];
+        priceUnit = "";
+      } else {
+        qty = it.qtyFn(v);
+        lineTotal = it.costFn(qty, v);
+        priceUnit = it.priceLabel(v);
+      }
+
+      grand += lineTotal;
+
+      document.getElementById("qty-" + it.key).textContent = qty !== null ? fmtQty(qty) : "";
+      document.getElementById("pu-" + it.key).textContent  = priceUnit;
+      document.getElementById("lt-" + it.key).textContent  = fmt(lineTotal);
+    });
+
+    document.getElementById("grand-total-cell").textContent = fmt(grand);
+  }
+
+  // ── CSV export ────────────────────────────────────────────────────────────
+  function csvField(val) {
+    const s = String(val ?? "");
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? '"' + s.replace(/"/g, '""') + '"'
+      : s;
+  }
+
+  function exportCsv() {
+    const v = readValues();
+    const rows = [["url", "quantity", "note"]];
+
+    ITEMS.forEach(it => {
+      const url = (document.getElementById("url-" + it.key)?.value ?? "").trim();
+      if (!url) return;
+
+      let qty;
+      if (it.fixed) {
+        qty = 1;
+      } else {
+        qty = Math.ceil(it.qtyFn(v));
+      }
+
+      rows.push([url, qty, it.label]);
+    });
+
+    if (rows.length < 2) {
+      alert("Add at least one product URL before exporting.");
+      return;
+    }
+
+    const csv = rows.map(r => r.map(csvField).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "foundation-bom.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  buildTable();
+  update();
+
+  document.querySelectorAll("input[type='number']").forEach(el => {
+    el.addEventListener("input", update);
+  });
+
+  document.getElementById("export-btn").addEventListener("click", exportCsv);
+</script>
+</body>
+</html>
