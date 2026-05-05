@@ -54,14 +54,24 @@ async function addItem(item) {
 }
 
 function waitForLoad(tabId) {
+  // Wait for `complete`, then a quiet window where no further navigation
+  // happens. Home Depot/Lowe's both fire `complete` on an interstitial,
+  // then redirect, which previously caused "Frame was removed" errors.
   return new Promise((resolve) => {
-    const listener = (id, info) => {
-      if (id === tabId && info.status === "complete") {
-        chrome.tabs.onUpdated.removeListener(listener);
-        setTimeout(resolve, 1500);
+    let settleTimer;
+    const onUpdated = (id, info) => {
+      if (id !== tabId) return;
+      if (info.status === "loading") {
+        clearTimeout(settleTimer);
+      } else if (info.status === "complete") {
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => {
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          resolve();
+        }, 2500);
       }
     };
-    chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.onUpdated.addListener(onUpdated);
   });
 }
 
