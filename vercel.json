@@ -1,6 +1,3 @@
 {
-  "framework": "nextjs",
-  "installCommand": "cd takeoff && npm install",
-  "buildCommand": "cd takeoff && npm run build",
-  "outputDirectory": "takeoff/.next"
+  "framework": "nextjs"
 }
