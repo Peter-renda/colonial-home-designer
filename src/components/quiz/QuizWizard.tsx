@@ -229,12 +229,16 @@ export default function QuizWizard() {
   if (typeof phase === "object" && phase.type === "detail") {
     const { index } = phase;
     const section = QUIZ_SECTIONS[index];
+    const sameGroupSections = QUIZ_SECTIONS.filter((s) => s.group === section.group);
+    const groupIndex = sameGroupSections.findIndex((s) => s.id === section.id);
 
     return (
       <DetailSectionStep
         section={section}
         sectionIndex={index}
         totalSections={QUIZ_SECTIONS.length}
+        groupIndex={groupIndex}
+        groupTotal={sameGroupSections.length}
         answers={answers}
         onChange={updateAnswer}
         onNext={() => {

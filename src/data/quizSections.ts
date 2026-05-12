@@ -1,46 +1,13 @@
 import { QuizSection } from "../types/quiz";
 
 export const QUIZ_SECTIONS: QuizSection[] = [
-  {
-    id: "additional-space",
-    title: "Additional Space",
-    subtitle: "Tell us about extra spaces you'd like to include.",
-    questions: [
-      {
-        id: "finishedThirdFloor",
-        label: "Finished 3rd Floor",
-        type: "select",
-        options: ["Guest room, bathroom, and bonus room", "Bonus room only", "None"],
-      },
-      {
-        id: "finishedSpaceOverGarage",
-        label: "Finished space over garage",
-        type: "select",
-        options: ["Guest room & bathroom", "Bonus room", "None", "Gym"],
-      },
-      {
-        id: "sunroom",
-        label: "Sun room",
-        type: "select",
-        options: ["Yes - right side", "Yes - left side", "No"],
-      },
-      {
-        id: "finishedBasement",
-        label: "Finished basement",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-      {
-        id: "breezeway",
-        label: "Breezeway",
-        type: "select",
-        options: ["Yes - enclosed", "Yes - open", "No"],
-      },
-    ],
-  },
+  // ─────────────────────────────────────────────────────────────
+  // STRUCTURAL — bones of the house
+  // ─────────────────────────────────────────────────────────────
   {
     id: "foundation",
     title: "Foundation",
+    group: "structural",
     questions: [
       {
         id: "foundationType",
@@ -81,39 +48,9 @@ export const QUIZ_SECTIONS: QuizSection[] = [
     ],
   },
   {
-    id: "garage",
-    title: "Garage",
-    questions: [
-      {
-        id: "garage",
-        label: "Garage",
-        type: "select",
-        options: [
-          "None",
-          "2 car front load",
-          "2 car side load",
-          "2 car side load - front of house",
-          "3 car side load - rear",
-          "Detached",
-        ],
-      },
-      {
-        id: "garageDoorLevel",
-        label: "Garage door level",
-        type: "select",
-        options: ["aluminum", "wood", "custom - wood"],
-      },
-      {
-        id: "sideEntrance",
-        label: "Side entrance",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-    ],
-  },
-  {
     id: "framing",
     title: "Framing",
+    group: "structural",
     questions: [
       {
         id: "firstFloorCeilingHeight",
@@ -148,157 +85,9 @@ export const QUIZ_SECTIONS: QuizSection[] = [
     ],
   },
   {
-    id: "front-porch",
-    title: "Front Porch",
-    subtitle: "Optional",
-    questions: [
-      {
-        id: "frontPorch",
-        label: "Front porch (on slab/basement)",
-        type: "select",
-        options: [
-          "None",
-          "8' x 6' concrete",
-          "38' x 10' concrete",
-          "5' x 4'",
-          "8' x 6' brick herringbone",
-        ],
-      },
-    ],
-  },
-  {
-    id: "portico",
-    title: "Portico / Awning",
-    subtitle: "Optional",
-    questions: [
-      {
-        id: "portico",
-        label: "Portico (on slab/basement)",
-        type: "select",
-        options: [
-          "None",
-          "Gable Portico (with 8' x 6' front porch)",
-          "Rounded Portico (with 8' x 6' front porch)",
-          "Flat Portico (with 8' x 6' front porch)",
-          "Hip roof (with 38' x 10')",
-        ],
-      },
-    ],
-  },
-  {
-    id: "roof",
-    title: "Roof",
-    questions: [
-      {
-        id: "roofShape",
-        label: "Roof shape",
-        type: "select",
-        options: ["Gable", "Hip", "Gable with front gable (Georgian style)"],
-      },
-      {
-        id: "dormers",
-        label: "Dormers",
-        type: "select",
-        options: ["Gable", "Shed", "Hip", "Eyebrow", "Through the cornice"],
-      },
-      {
-        id: "gutters",
-        label: "Gutters",
-        type: "select",
-        options: ["4 in aluminum", "5 in aluminum", "6 in copper"],
-      },
-      {
-        id: "shingleStyle",
-        label: "Shingle style",
-        type: "select",
-        options: ["Brava - composite slate", "Brava - cedar shake", "GAF - architectural"],
-      },
-      {
-        id: "snowguards",
-        label: "Snowguards",
-        type: "select",
-        options: ["No", "Snowbird - black", "Snowbirds - copper"],
-      },
-      {
-        id: "rafterTails",
-        label: "Rafter tails",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-    ],
-  },
-  {
-    id: "rear-porch",
-    title: "Rear Porch",
-    subtitle: "Optional",
-    questions: [
-      {
-        id: "rearPorchSlabBasement",
-        label: "Rear porch (on slab/basement)",
-        type: "select",
-        options: ["10' x 20' concrete", "10' x 20' stamped concrete", "10' x 20' brick", "None"],
-      },
-      {
-        id: "rearPorchStemwall",
-        label: "Rear porch (on stemwall)",
-        type: "select",
-        options: ["10' x 20' concrete", "10' x 20' stamped concrete", "10' x 20' brick", "None"],
-      },
-      {
-        id: "awning",
-        label: "Awning",
-        type: "select",
-        options: ["Gable roof", "Hip roof"],
-      },
-    ],
-  },
-  {
-    id: "rear-door-awning",
-    title: "Rear Door Awning",
-    subtitle: "Optional",
-    questions: [
-      {
-        id: "rearDoorAwningSlabBasement",
-        label: "Rear door awning (slab/basement)",
-        type: "select",
-        options: ["Juliet awning", "Shed roof", "N/A"],
-      },
-      {
-        id: "rearDoorAwningCorbelStyle",
-        label: "Rear door awning corbel style",
-        type: "select",
-        options: ["Standard scroll", "Cumberland"],
-      },
-      {
-        id: "rearDoorAwningStemwall",
-        label: "Rear door awning (stemwall)",
-        type: "select",
-        options: ["Juliet awning", "Shed roof", "N/A"],
-      },
-    ],
-  },
-  {
-    id: "side-door-awning",
-    title: "Side Door Awning",
-    subtitle: "Optional",
-    questions: [
-      {
-        id: "sideDoorAwningSlabBasement",
-        label: "Side door awning (slab/basement)",
-        type: "select",
-        options: ["Juliet awning", "Shed roof", "N/A"],
-      },
-      {
-        id: "sideDoorAwningStemwall",
-        label: "Side door awning (stemwall)",
-        type: "select",
-        options: ["Juliet awning", "Shed roof", "N/A"],
-      },
-    ],
-  },
-  {
     id: "insulation",
     title: "Insulation",
+    group: "structural",
     questions: [
       {
         id: "exteriorInsulation",
@@ -323,6 +112,7 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "hvac",
     title: "HVAC",
+    group: "structural",
     questions: [
       {
         id: "floorReturns",
@@ -362,9 +152,14 @@ export const QUIZ_SECTIONS: QuizSection[] = [
       },
     ],
   },
+
+  // ─────────────────────────────────────────────────────────────
+  // EXTERIOR — what you see from outside
+  // ─────────────────────────────────────────────────────────────
   {
     id: "facade",
     title: "Facade",
+    group: "exterior",
     questions: [
       {
         id: "facade",
@@ -387,27 +182,52 @@ export const QUIZ_SECTIONS: QuizSection[] = [
     ],
   },
   {
-    id: "chimney",
-    title: "Chimney / Fireplace",
-    subtitle: "Optional",
+    id: "roof",
+    title: "Roof",
+    group: "exterior",
     questions: [
       {
-        id: "chimneyFireplace",
-        label: "Chimney/Fireplace",
+        id: "roofShape",
+        label: "Roof shape",
         type: "select",
-        options: ["Yes", "No"],
+        options: ["Gable", "Hip", "Gable with front gable (Georgian style)"],
       },
       {
-        id: "fireplaceSurround",
-        label: "Fireplace surround",
+        id: "dormers",
+        label: "Dormers",
         type: "select",
-        options: ["Wood", "Brick", "Marble", "Cast stone"],
+        options: ["None", "Gable", "Shed", "Hip", "Eyebrow", "Through the cornice"],
+      },
+      {
+        id: "gutters",
+        label: "Gutters",
+        type: "select",
+        options: ["4 in aluminum", "5 in aluminum", "6 in copper"],
+      },
+      {
+        id: "shingleStyle",
+        label: "Shingle style",
+        type: "select",
+        options: ["Brava - composite slate", "Brava - cedar shake", "GAF - architectural"],
+      },
+      {
+        id: "snowguards",
+        label: "Snowguards",
+        type: "select",
+        options: ["No", "Snowbird - black", "Snowbirds - copper"],
+      },
+      {
+        id: "rafterTails",
+        label: "Rafter tails",
+        type: "select",
+        options: ["Yes", "No"],
       },
     ],
   },
   {
     id: "windows",
     title: "Windows",
+    group: "exterior",
     questions: [
       {
         id: "windowStyle",
@@ -482,6 +302,7 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "exterior-doors",
     title: "Exterior Doors",
+    group: "exterior",
     questions: [
       {
         id: "frontDoorLevel",
@@ -535,8 +356,278 @@ export const QUIZ_SECTIONS: QuizSection[] = [
     ],
   },
   {
+    id: "front-porch",
+    title: "Front Porch",
+    subtitle: "Optional",
+    group: "exterior",
+    questions: [
+      {
+        id: "frontPorch",
+        label: "Front porch (on slab/basement)",
+        type: "select",
+        options: [
+          "None",
+          "8' x 6' concrete",
+          "38' x 10' concrete",
+          "5' x 4'",
+          "8' x 6' brick herringbone",
+        ],
+      },
+    ],
+  },
+  {
+    id: "portico",
+    title: "Portico / Awning",
+    subtitle: "Optional",
+    group: "exterior",
+    questions: [
+      {
+        id: "portico",
+        label: "Portico (on slab/basement)",
+        type: "select",
+        options: [
+          "None",
+          "Gable Portico (with 8' x 6' front porch)",
+          "Rounded Portico (with 8' x 6' front porch)",
+          "Flat Portico (with 8' x 6' front porch)",
+          "Hip roof (with 38' x 10')",
+        ],
+      },
+    ],
+  },
+  {
+    id: "rear-porch",
+    title: "Rear Porch",
+    subtitle: "Optional",
+    group: "exterior",
+    questions: [
+      {
+        id: "rearPorchSlabBasement",
+        label: "Rear porch (on slab/basement)",
+        type: "select",
+        options: ["10' x 20' concrete", "10' x 20' stamped concrete", "10' x 20' brick", "None"],
+      },
+      {
+        id: "rearPorchStemwall",
+        label: "Rear porch (on stemwall)",
+        type: "select",
+        options: ["10' x 20' concrete", "10' x 20' stamped concrete", "10' x 20' brick", "None"],
+      },
+      {
+        id: "awning",
+        label: "Awning",
+        type: "select",
+        options: ["Gable roof", "Hip roof"],
+      },
+    ],
+  },
+  {
+    id: "rear-door-awning",
+    title: "Rear Door Awning",
+    subtitle: "Optional",
+    group: "exterior",
+    questions: [
+      {
+        id: "rearDoorAwningSlabBasement",
+        label: "Rear door awning (slab/basement)",
+        type: "select",
+        options: ["Juliet awning", "Shed roof", "N/A"],
+      },
+      {
+        id: "rearDoorAwningCorbelStyle",
+        label: "Rear door awning corbel style",
+        type: "select",
+        options: ["Standard scroll", "Cumberland"],
+      },
+      {
+        id: "rearDoorAwningStemwall",
+        label: "Rear door awning (stemwall)",
+        type: "select",
+        options: ["Juliet awning", "Shed roof", "N/A"],
+      },
+    ],
+  },
+  {
+    id: "side-door-awning",
+    title: "Side Door Awning",
+    subtitle: "Optional",
+    group: "exterior",
+    questions: [
+      {
+        id: "sideDoorAwningSlabBasement",
+        label: "Side door awning (slab/basement)",
+        type: "select",
+        options: ["Juliet awning", "Shed roof", "N/A"],
+      },
+      {
+        id: "sideDoorAwningStemwall",
+        label: "Side door awning (stemwall)",
+        type: "select",
+        options: ["Juliet awning", "Shed roof", "N/A"],
+      },
+    ],
+  },
+  {
+    id: "garage",
+    title: "Garage",
+    group: "exterior",
+    questions: [
+      {
+        id: "garage",
+        label: "Garage",
+        type: "select",
+        options: [
+          "None",
+          "2 car front load",
+          "2 car side load",
+          "2 car side load - front of house",
+          "3 car side load - rear",
+          "Detached",
+        ],
+      },
+      {
+        id: "garageDoorLevel",
+        label: "Garage door level",
+        type: "select",
+        options: ["aluminum", "wood", "custom - wood"],
+      },
+      {
+        id: "sideEntrance",
+        label: "Side entrance",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+    ],
+  },
+  {
+    id: "chimney",
+    title: "Chimney / Fireplace",
+    subtitle: "Optional",
+    group: "exterior",
+    questions: [
+      {
+        id: "chimneyFireplace",
+        label: "Chimney/Fireplace",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+      {
+        id: "fireplaceSurround",
+        label: "Fireplace surround",
+        type: "select",
+        options: ["Wood", "Brick", "Marble", "Cast stone"],
+      },
+    ],
+  },
+  {
+    id: "hardscaping",
+    title: "Hardscaping & Landscaping",
+    group: "exterior",
+    questions: [
+      {
+        id: "grass",
+        label: "Grass",
+        type: "select",
+        options: ["Sod", "Hydroseed"],
+      },
+      {
+        id: "mailbox",
+        label: "Mailbox",
+        type: "select",
+        options: ["Wood/vinyl post", "Brick"],
+      },
+      {
+        id: "walkwayFromCurb",
+        label: "Walkway from curb",
+        type: "select",
+        options: ["Concrete", "Brick - herringbone", "Brick - overlapping", "Brick - running bond"],
+      },
+      {
+        id: "driveway",
+        label: "Driveway (assuming 30' house setback)",
+        type: "select",
+        options: ["Front load", "Side load", "Ribbon driveway - front load"],
+      },
+      {
+        id: "horseshoeDriveway",
+        label: "Horseshoe driveway",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+      {
+        id: "frontFlowerbedEdging",
+        label: "Front flowerbed edging",
+        type: "select",
+        options: ["Brick 1' tall", "Brick on edge"],
+      },
+      {
+        id: "sideFlowerbedEdging",
+        label: "Side flowerbed edging",
+        type: "select",
+        options: ["Brick 1' tall", "Brick on edge"],
+      },
+      {
+        id: "patioPerimeterWall",
+        label: "Patio perimeter wall",
+        type: "select",
+        options: ["Brick 1' tall"],
+      },
+      {
+        id: "windowPlanterBoxes",
+        label: "Window planter boxes (x2)",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // ROOMS — interior, room by room
+  // ─────────────────────────────────────────────────────────────
+  {
+    id: "additional-space",
+    title: "Additional Space",
+    subtitle: "Tell us about extra spaces you'd like to include.",
+    group: "rooms",
+    sketchKey: "whole-house",
+    questions: [
+      {
+        id: "finishedThirdFloor",
+        label: "Finished 3rd Floor",
+        type: "select",
+        options: ["Guest room, bathroom, and bonus room", "Bonus room only", "None"],
+      },
+      {
+        id: "finishedSpaceOverGarage",
+        label: "Finished space over garage",
+        type: "select",
+        options: ["Guest room & bathroom", "Bonus room", "None", "Gym"],
+      },
+      {
+        id: "sunroom",
+        label: "Sun room",
+        type: "select",
+        options: ["Yes - right side", "Yes - left side", "No"],
+      },
+      {
+        id: "finishedBasement",
+        label: "Finished basement",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+      {
+        id: "breezeway",
+        label: "Breezeway",
+        type: "select",
+        options: ["Yes - enclosed", "Yes - open", "No"],
+      },
+    ],
+  },
+  {
     id: "flooring-first",
     title: "Flooring — First Floor",
+    group: "rooms",
+    sketchKey: "first-floor",
     questions: [
       {
         id: "firstFloorFlooring",
@@ -581,6 +672,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "flooring-second",
     title: "Flooring — Second Floor",
+    group: "rooms",
+    sketchKey: "second-floor",
     questions: [
       {
         id: "secondFloorStaircaseFlooring",
@@ -644,6 +737,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "staircase",
     title: "Staircase",
+    group: "rooms",
+    sketchKey: "staircase",
     questions: [
       {
         id: "balusters",
@@ -678,6 +773,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "trim",
     title: "Trim",
+    group: "rooms",
+    sketchKey: "trim",
     questions: [
       {
         id: "baseboard",
@@ -733,6 +830,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
     id: "trim-by-room",
     title: "Trim by Room",
     subtitle: "Select all trim elements for each room.",
+    group: "rooms",
+    sketchKey: "trim-by-room",
     questions: [
       {
         id: "diningRoomTrimByRoom",
@@ -829,6 +928,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "interior-doors",
     title: "Interior Doors",
+    group: "rooms",
+    sketchKey: "interior-door",
     questions: [
       {
         id: "doorQuality",
@@ -854,7 +955,9 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   },
   {
     id: "kitchen-cabinets",
-    title: "Kitchen Cabinets",
+    title: "Kitchen — Cabinets",
+    group: "rooms",
+    sketchKey: "kitchen",
     questions: [
       {
         id: "kitchenCabinetStyle",
@@ -966,7 +1069,9 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   },
   {
     id: "kitchen-appliances",
-    title: "Kitchen Appliances",
+    title: "Kitchen — Appliances",
+    group: "rooms",
+    sketchKey: "kitchen",
     questions: [
       {
         id: "fridge",
@@ -1003,6 +1108,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "countertops",
     title: "Countertops & Backsplash",
+    group: "rooms",
+    sketchKey: "kitchen",
     questions: [
       {
         id: "kitchenCountertopMaterial",
@@ -1111,6 +1218,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "bath-cabinets",
     title: "Bath Cabinets",
+    group: "rooms",
+    sketchKey: "bath",
     questions: [
       {
         id: "powderRoomVanity",
@@ -1146,7 +1255,9 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   },
   {
     id: "plumbing",
-    title: "Plumbing",
+    title: "Plumbing Fixtures",
+    group: "rooms",
+    sketchKey: "bath",
     questions: [
       {
         id: "toiletStyle",
@@ -1261,6 +1372,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "mirrors-hardware",
     title: "Mirrors & Bath Hardware",
+    group: "rooms",
+    sketchKey: "bath",
     questions: [
       {
         id: "powderBathMirror",
@@ -1327,6 +1440,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "shelving",
     title: "Shelving & Built-ins",
+    group: "rooms",
+    sketchKey: "built-ins",
     questions: [
       {
         id: "livingRoomBuiltIns",
@@ -1363,6 +1478,8 @@ export const QUIZ_SECTIONS: QuizSection[] = [
   {
     id: "electrical",
     title: "Electrical & Lighting",
+    group: "rooms",
+    sketchKey: "lighting",
     questions: [
       {
         id: "foyerLightFixture",
@@ -1492,64 +1609,10 @@ export const QUIZ_SECTIONS: QuizSection[] = [
       },
     ],
   },
-  {
-    id: "hardscaping",
-    title: "Hardscaping & Landscaping",
-    questions: [
-      {
-        id: "grass",
-        label: "Grass",
-        type: "select",
-        options: ["Sod", "Hydroseed"],
-      },
-      {
-        id: "mailbox",
-        label: "Mailbox",
-        type: "select",
-        options: ["Wood/vinyl post", "Brick"],
-      },
-      {
-        id: "walkwayFromCurb",
-        label: "Walkway from curb",
-        type: "select",
-        options: ["Concrete", "Brick - herringbone", "Brick - overlapping", "Brick - running bond"],
-      },
-      {
-        id: "driveway",
-        label: "Driveway (assuming 30' house setback)",
-        type: "select",
-        options: ["Front load", "Side load", "Ribbon driveway - front load"],
-      },
-      {
-        id: "horseshoeDriveway",
-        label: "Horseshoe driveway",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-      {
-        id: "frontFlowerbedEdging",
-        label: "Front flowerbed edging",
-        type: "select",
-        options: ["Brick 1' tall", "Brick on edge"],
-      },
-      {
-        id: "sideFlowerbedEdging",
-        label: "Side flowerbed edging",
-        type: "select",
-        options: ["Brick 1' tall", "Brick on edge"],
-      },
-      {
-        id: "patioPerimeterWall",
-        label: "Patio perimeter wall",
-        type: "select",
-        options: ["Brick 1' tall"],
-      },
-      {
-        id: "windowPlanterBoxes",
-        label: "Window planter boxes (x2)",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-    ],
-  },
 ];
+
+export const GROUP_LABELS: Record<"structural" | "exterior" | "rooms", string> = {
+  structural: "Structural",
+  exterior: "Exterior",
+  rooms: "Rooms",
+};
