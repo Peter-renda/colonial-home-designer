@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { QuizAnswers, QuizGroup } from "../../types/quiz";
 
 interface Props {
@@ -13,10 +14,276 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
   if (group === "structural") {
     return <StructuralSketch sectionId={sectionId} answers={answers} />;
   }
+  const prompt = buildSketchPrompt(group, sectionId, sketchKey, answers);
+  const label =
+    group === "exterior"
+      ? sketchPanelLabel(sectionId) ?? "Hand sketch"
+      : (sketchKey ?? sectionId).replace(/-/g, " ");
+  return <SketchedImage prompt={prompt} label={label} />;
+}
+
+function sketchPanelLabel(sectionId: string): string | null {
+  const map: Record<string, string> = {
+    facade: "Facade",
+    roof: "Roof",
+    windows: "Windows",
+    "exterior-doors": "Front entrance",
+    "front-porch": "Front porch",
+    portico: "Portico",
+    "rear-porch": "Rear porch",
+    "rear-door-awning": "Rear door awning",
+    "side-door-awning": "Side door awning",
+    garage: "Garage",
+    chimney: "Chimney",
+    hardscaping: "Hardscaping",
+  };
+  return map[sectionId] ?? null;
+}
+
+function buildSketchPrompt(
+  group: QuizGroup,
+  sectionId: string,
+  sketchKey: string | undefined,
+  answers: QuizAnswers
+): string {
+  const facade = ans(answers, "facade") || "brick";
+  const paint = ans(answers, "exteriorPaint");
+  const fascia = ans(answers, "fasciaMoulding");
+  const roofShape = ans(answers, "roofShape") || "gable";
+  const dormers = ans(answers, "dormers");
+  const shingle = ans(answers, "shingleStyle");
+  const gutters = ans(answers, "gutters");
+  const windowStyle = ans(answers, "windowStyle");
+  const shutters = ans(answers, "shutters");
+  const headers = ans(answers, "windowHeadersFirstFloor");
+  const sills = ans(answers, "windowSillsFirstFloor");
+  const frontDoor = ans(answers, "frontDoorLevel");
+  const sidelights = ans(answers, "sidelights") === "Yes";
+  const transom = ans(answers, "transom");
+  const frontPorch = ans(answers, "frontPorch");
+  const portico = ans(answers, "portico");
+  const rearPorch = ans(answers, "rearPorchSlabBasement");
+  const garage = ans(answers, "garage");
+  const garageDoor = ans(answers, "garageDoorLevel");
+  const chimney = ans(answers, "chimneyFireplace") === "Yes";
+  const fireplaceSurround = ans(answers, "fireplaceSurround");
+  const driveway = ans(answers, "driveway");
+  const walkway = ans(answers, "walkwayFromCurb");
+
+  // Common exterior subject (used as scene base for exterior sections)
+  const facadeDesc = paint && paint !== "None" ? `${facade} facade painted ${paint}` : `${facade} facade`;
+  const exteriorScene = [
+    `American colonial two-story house`,
+    facadeDesc,
+    `${roofShape} roof`,
+    shingle ? `${shingle} shingles` : "",
+    dormers && dormers !== "None" ? `${dormers} dormers` : "",
+    fascia && fascia !== "None" ? `${fascia} fascia moulding` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   if (group === "exterior") {
-    return <ExteriorElevations sectionId={sectionId} answers={answers} />;
+    switch (sectionId) {
+      case "facade":
+        return `front elevation of an ${exteriorScene}, focused on facade details`;
+      case "roof":
+        return `${exteriorScene}, emphasizing ${roofShape} roof${
+          dormers && dormers !== "None" ? ` with ${dormers} dormers` : ""
+        }${gutters ? `, ${gutters} gutters` : ""}`;
+      case "windows":
+        return `${exteriorScene}, with ${windowStyle || "single hung"} windows${
+          shutters && shutters !== "No" ? `, ${shutters} shutters` : ""
+        }${headers ? `, ${headers} window headers` : ""}${sills ? `, ${sills} window sills` : ""}`;
+      case "exterior-doors":
+        return `close-up of a colonial front entrance, ${facadeDesc}, ${
+          frontDoor || "wood"
+        } six-panel front door${sidelights ? ", with sidelights" : ""}${
+          transom && transom !== "None" ? `, ${transom} transom` : ""
+        }`;
+      case "front-porch":
+        return `${exteriorScene}, with ${frontPorch || "concrete front porch"}`;
+      case "portico":
+        return `${exteriorScene}, with ${portico || "gable portico"} above front door`;
+      case "rear-porch":
+        return `rear elevation of an ${exteriorScene}, with ${rearPorch || "concrete rear porch"}`;
+      case "rear-door-awning":
+        return `rear elevation of an ${exteriorScene}, with ${
+          ans(answers, "rearDoorAwningSlabBasement") || "shed roof"
+        } awning over rear door`;
+      case "side-door-awning":
+        return `side elevation of an ${exteriorScene}, with ${
+          ans(answers, "sideDoorAwningSlabBasement") || "shed roof"
+        } awning over side door`;
+      case "garage":
+        return `${exteriorScene}, with ${garage || "two car attached garage"}, ${
+          garageDoor || "wood"
+        } garage doors`;
+      case "chimney":
+        return `${exteriorScene}${chimney ? ", with brick chimney" : ""}, interior fireplace with ${
+          fireplaceSurround || "wood"
+        } surround`;
+      case "hardscaping":
+        return `${exteriorScene}, ${driveway || "concrete driveway"}, ${
+          walkway || "brick walkway"
+        } from the curb, sod lawn, landscaped flowerbeds`;
+      default:
+        return `front elevation of an ${exteriorScene}`;
+    }
   }
-  return <RoomSketch sketchKey={sketchKey ?? sectionId} answers={answers} />;
+
+  // ── rooms ──
+  const key = sketchKey ?? sectionId;
+  const kitchenCabinet = ans(answers, "kitchenCabinetStyle");
+  const kitchenMat = ans(answers, "kitchenCabinetMaterial");
+  const kitchenCountertop = ans(answers, "kitchenCountertopMaterial");
+  const backsplash = ans(answers, "kitchenBacksplash");
+  const firstFloorFloor = ans(answers, "firstFloorFlooring");
+  const bedroomFloor = ans(answers, "bedroomFlooring");
+  const baluster = ans(answers, "balusters");
+  const newel = ans(answers, "newels");
+  const baseboard = ans(answers, "baseboard");
+  const crown = ans(answers, "crownMolding");
+  const doorQ = ans(answers, "doorQuality");
+
+  switch (key) {
+    case "whole-house":
+      return `floor plan layout of a colonial two-story house, top-down view, room labels, including ${[
+        ans(answers, "finishedThirdFloor") !== "None" ? "finished third floor" : "",
+        ans(answers, "finishedBasement") === "Yes" ? "finished basement" : "",
+        ans(answers, "sunroom") && ans(answers, "sunroom") !== "No" ? "sunroom" : "",
+      ]
+        .filter(Boolean)
+        .join(", ") || "standard layout"}`;
+    case "first-floor":
+      return `first floor plan of a colonial house, top-down architectural drawing, ${
+        firstFloorFloor || "oak"
+      } hardwood floors, foyer, living room, dining room, kitchen, mudroom, powder bath`;
+    case "second-floor":
+      return `second floor plan of a colonial house, top-down architectural drawing, ${
+        bedroomFloor || "oak"
+      } bedroom floors, primary bedroom and bath, three bedrooms, hallway`;
+    case "kitchen":
+      return `interior view of a colonial kitchen, ${kitchenCabinet || "shaker"} ${
+        kitchenMat || "wood"
+      } cabinets, ${kitchenCountertop || "marble"} countertops, ${backsplash || "subway"} backsplash, island`;
+    case "bath":
+      return `interior view of a colonial bathroom, marble countertop vanity, mirror, toilet, tub and shower`;
+    case "staircase":
+      return `colonial interior staircase, ${baluster || "vase and column"} balusters, ${
+        newel || "Federal"
+      } newel post, oak handrail${
+        ans(answers, "roundedStartingStep") === "Yes" ? ", rounded starting step" : ""
+      }`;
+    case "trim":
+    case "trim-by-room":
+      return `interior trim details, ${baseboard || "Federal"} baseboard, ${
+        crown || "Federal"
+      } crown molding, casing details, wainscoting`;
+    case "interior-door":
+      return `interior six-panel door, ${doorQ || "solidcore"}, ${
+        ans(answers, "doorHardware") || "brass"
+      } hardware, traditional colonial style`;
+    case "built-ins":
+      return `colonial built-in cabinetry and shelving in a living room, painted wood, flanking a fireplace`;
+    case "lighting":
+      return `interior colonial lighting fixtures: foyer chandelier, kitchen pendants, sconces, recessed lights`;
+    default:
+      return `colonial home interior detail`;
+  }
+}
+
+function SketchedImage({ prompt, label }: { prompt: string; label: string }) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const cacheRef = useRef<Map<string, string>>(new Map());
+  const lastRequestedPrompt = useRef<string>("");
+
+  useEffect(() => {
+    const cached = cacheRef.current.get(prompt);
+    if (cached) {
+      setImageUrl(cached);
+      setError(null);
+      setLoading(false);
+      lastRequestedPrompt.current = prompt;
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      let cancelled = false;
+      lastRequestedPrompt.current = prompt;
+      setLoading(true);
+      setError(null);
+      fetch("/api/sketch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (cancelled) return;
+          if (!res.ok || !data.imageUrl) {
+            setError(data.error ?? "Failed to generate sketch");
+            return;
+          }
+          cacheRef.current.set(prompt, data.imageUrl);
+          if (lastRequestedPrompt.current === prompt) {
+            setImageUrl(data.imageUrl);
+          }
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setError(e instanceof Error ? e.message : "Failed to generate sketch");
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, 900);
+
+    return () => clearTimeout(handle);
+  }, [prompt]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
+        {label} — hand sketch
+      </p>
+      <div className="relative bg-stone-50 border border-stone-200 aspect-square w-full overflow-hidden">
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={`${label} hand sketch`}
+            className={`w-full h-full object-cover transition-opacity duration-500 ${
+              loading ? "opacity-60" : "opacity-100"
+            }`}
+          />
+        )}
+        {!imageUrl && !error && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-stone-400">
+            {loading ? "Sketching…" : "Preparing sketch…"}
+          </div>
+        )}
+        {error && !imageUrl && (
+          <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs text-stone-500">
+            Couldn&rsquo;t generate sketch: {error}
+          </div>
+        )}
+        {loading && imageUrl && (
+          <div className="absolute top-2 right-2 text-[10px] uppercase tracking-wider bg-white/80 px-2 py-1 text-stone-500 border border-stone-200">
+            Updating…
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-stone-400 leading-relaxed">
+        AI-generated pencil sketch · regenerates as you change selections.
+      </p>
+    </div>
+  );
 }
 
 // ─── helpers ───────────────────────────────────────────────────
