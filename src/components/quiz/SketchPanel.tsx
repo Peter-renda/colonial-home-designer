@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QuizAnswers, QuizGroup } from "../../types/quiz";
+import {
+  StandaloneFrontElevationSideGable,
+  StandaloneAssembly,
+} from "./PencilExterior";
 
 interface Props {
   group: QuizGroup;
@@ -14,12 +18,53 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
   if (group === "structural") {
     return <StructuralSketch sectionId={sectionId} answers={answers} />;
   }
+  if (group === "exterior") {
+    return <ExteriorPencilSketch sectionId={sectionId} />;
+  }
   const prompt = buildSketchPrompt(group, sectionId, sketchKey, answers);
-  const label =
-    group === "exterior"
-      ? sketchPanelLabel(sectionId) ?? "Hand sketch"
-      : (sketchKey ?? sectionId).replace(/-/g, " ");
+  const label = (sketchKey ?? sectionId).replace(/-/g, " ");
   return <SketchedImage prompt={prompt} label={label} />;
+}
+
+// ─── EXTERIOR — pencil sketch from the House Design handoff ─────
+function ExteriorPencilSketch({ sectionId }: { sectionId: string }) {
+  const label = sketchPanelLabel(sectionId) ?? "Front elevation";
+  // For the window section, also surface the close-up window+shutter
+  // assembly alongside the full elevation so users can see the detail.
+  const showDetail = sectionId === "windows";
+  return (
+    <div className="space-y-4">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
+        {label} — pencil sketch
+      </p>
+      <div className="bg-[#f7f3e8] border border-stone-200 w-full overflow-hidden">
+        <div className="w-full" style={{ aspectRatio: "1080 / 900" }}>
+          <StandaloneFrontElevationSideGable
+            widthFt={39.4}
+            wallHeightFt={20}
+            pitch={9 / 12}
+            buildingDepthFt={28}
+          />
+        </div>
+      </div>
+      {showDetail && (
+        <div className="bg-[#f7f3e8] border border-stone-200 w-full overflow-hidden">
+          <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-stone-400 border-b border-stone-200">
+            3&prime;&times;6&prime; double-hung with louvered shutters
+          </div>
+          <div className="w-full" style={{ aspectRatio: "560 / 570" }}>
+            <StandaloneAssembly widthFt={3} heightFt={6} shutterWidthIn={16} />
+          </div>
+        </div>
+      )}
+      <p className="text-xs text-stone-400 leading-relaxed">
+        39&prime;-5&Prime; &times; 20&prime; wall, 9/12 side-gable, architectural asphalt shingles.
+        Centered 6-panel door with four 3&prime;&times;6&prime; double-hungs flanking on the first
+        floor and five 3&prime;&times;5&prime; double-hungs aligned above, all carrying louvered
+        shutters.
+      </p>
+    </div>
+  );
 }
 
 function sketchPanelLabel(sectionId: string): string | null {
