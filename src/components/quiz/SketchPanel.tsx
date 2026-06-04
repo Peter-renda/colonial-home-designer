@@ -37,22 +37,21 @@ function ExteriorPencilSketch({ sectionId }: { sectionId: string }) {
       <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
         {label} — pencil sketch
       </p>
-      <div className="bg-[#f7f3e8] border border-stone-200 w-full overflow-hidden">
-        <div className="w-full" style={{ aspectRatio: "1080 / 900" }}>
-          <StandaloneFrontElevationSideGable
-            widthFt={39.4}
-            wallHeightFt={20}
-            pitch={9 / 12}
-            buildingDepthFt={28}
-          />
-        </div>
+      <div className="bg-[#f7f3e8] border border-stone-200 w-full aspect-[516/402] overflow-hidden flex items-center justify-center p-3">
+        <StandaloneFrontElevationSideGable
+          key={`sg-${sectionId}`}
+          widthFt={39.4}
+          wallHeightFt={20}
+          pitch={9 / 12}
+          buildingDepthFt={28}
+        />
       </div>
       {showDetail && (
         <div className="bg-[#f7f3e8] border border-stone-200 w-full overflow-hidden">
           <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-stone-400 border-b border-stone-200">
             3&prime;&times;6&prime; double-hung with louvered shutters
           </div>
-          <div className="w-full" style={{ aspectRatio: "560 / 570" }}>
+          <div className="w-full aspect-square flex items-center justify-center p-3">
             <StandaloneAssembly widthFt={3} heightFt={6} shutterWidthIn={16} />
           </div>
         </div>
