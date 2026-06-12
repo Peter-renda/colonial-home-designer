@@ -1,8 +1,14 @@
-export type QuestionType = "select" | "multiselect" | "text";
+export type QuestionType = "select" | "multiselect" | "text" | "file";
 
 export type ArchitecturalStyle = "Federal" | "Georgian" | "Greek Revival";
 
-export type QuizGroup = "structural" | "exterior" | "rooms";
+export type QuizGroup = "site" | "structural" | "exterior" | "rooms" | "systems";
+
+/** Show a question only when another answer matches one of these values. */
+export interface ShowIf {
+  questionId: string;
+  equalsAny: string[];
+}
 
 export interface QuizQuestion {
   id: string;
@@ -11,6 +17,10 @@ export interface QuizQuestion {
   options?: string[];
   placeholder?: string;
   optional?: boolean;
+  /** Accept attribute for file questions, e.g. "image/*" */
+  accept?: string;
+  /** Conditional visibility — hidden unless the referenced answer matches. */
+  showIf?: ShowIf;
 }
 
 export interface QuizSection {

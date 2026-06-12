@@ -15,6 +15,17 @@ export function houseParamsJson(
   style: string,
   budget: string
 ): string {
+  // keep uploaded images (data URLs) out of the export — they're huge
+  const selections: QuizAnswers = Object.fromEntries(
+    Object.entries(answers).map(([k, v]) => [
+      k,
+      typeof v === "string" && v.startsWith("data:") ? "(uploaded file)" : v,
+    ])
+  );
+  const cleanParams: HouseParams = {
+    ...params,
+    site: { ...params.site, topoMapUrl: params.site.topoMapUrl ? "(uploaded file)" : null },
+  };
   return JSON.stringify(
     {
       generator: "SiteCommand Colonial Home Designer",
@@ -30,8 +41,8 @@ export function houseParamsJson(
         thirdFloorSqFt: COLONIAL_MODEL_1.thirdFloorSqFt,
         totalSqFt: COLONIAL_MODEL_1.totalSqFt,
       },
-      parameters: params,
-      selections: answers,
+      parameters: cleanParams,
+      selections,
     },
     null,
     2

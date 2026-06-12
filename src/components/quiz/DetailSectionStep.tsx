@@ -1,7 +1,9 @@
 "use client";
 
-import { QuizSection, QuizAnswers } from "../../types/quiz";
-import { GROUP_LABELS } from "../../data/quizSections";
+import { useEffect, useRef, useState } from "react";
+import { QuizSection, QuizAnswers, QuizQuestion } from "../../types/quiz";
+import { GROUP_LABELS, isQuestionVisible } from "../../data/quizSections";
+import { QUESTION_INFO } from "../../data/questionInfo";
 import SketchPanel from "./SketchPanel";
 
 interface Props {
@@ -16,6 +18,123 @@ interface Props {
   onBack: () => void;
 }
 
+/** "i" icon + popover with a short educational blurb about the item. */
+function InfoTip({ questionId, label }: { questionId: string; label: string }) {
+  const blurb = QUESTION_INFO[questionId];
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  if (!blurb) return null;
+
+  return (
+    <span ref={ref} className="relative inline-block align-middle">
+      <button
+        type="button"
+        aria-label={`About ${label}`}
+        onClick={() => setOpen(true)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className={`ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-serif italic leading-none transition-colors ${
+          open
+            ? "border-stone-600 bg-stone-700 text-white"
+            : "border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600"
+        }`}
+      >
+        i
+      </button>
+      {open && (
+        <span className="absolute left-1/2 top-full z-30 mt-2 block w-72 -translate-x-1/2 border border-stone-200 bg-white p-3 text-xs font-normal normal-case leading-relaxed text-stone-600 shadow-lg">
+          <span className="block mb-1 text-[10px] uppercase tracking-[0.15em] text-stone-400">
+            {label}
+          </span>
+          {blurb}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function FileUpload({
+  q,
+  value,
+  onChange,
+}: {
+  q: QuizQuestion;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") onChange(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={q.accept ?? "image/*"}
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+      {value ? (
+        <div className="border border-stone-200 bg-white p-3 flex items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={value}
+            alt="Uploaded topo map"
+            className="h-20 w-20 object-cover border border-stone-100"
+          />
+          <div className="flex-1 text-xs text-stone-500">
+            Map uploaded — it&rsquo;s draped over the 3D terrain on the right.
+          </div>
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="text-xs text-stone-500 hover:text-stone-700 underline underline-offset-2"
+            >
+              Replace
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="text-xs text-stone-400 hover:text-stone-600 underline underline-offset-2"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full border border-dashed border-stone-300 bg-white px-4 py-6 text-sm text-stone-400 hover:border-stone-500 hover:text-stone-600 transition-colors"
+        >
+          <span className="block text-2xl mb-1">⛰</span>
+          Click to upload a topo map, plat, or survey image
+          <span className="block text-xs text-stone-300 mt-1">PNG or JPG — county GIS screenshots work great</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function DetailSectionStep({
   section,
   sectionIndex,
@@ -28,6 +147,8 @@ export default function DetailSectionStep({
   onBack,
 }: Props) {
   const overallPct = Math.round(((sectionIndex + 1) / totalSections) * 100);
+  const visibleQuestions = section.questions.filter((q) => isQuestionVisible(q, answers));
+  const hiddenCount = section.questions.length - visibleQuestions.length;
 
   function toggleMulti(id: string, option: string) {
     const current = (answers[id] as string[] | undefined) ?? [];
@@ -71,14 +192,33 @@ export default function DetailSectionStep({
             </div>
 
             <div className="space-y-6">
-              {section.questions.map((q) => {
+              {visibleQuestions.map((q) => {
                 const value = answers[q.id];
+
+                if (q.type === "file") {
+                  return (
+                    <div key={q.id}>
+                      <p className="text-sm font-medium text-stone-700 mb-2">
+                        {q.label}
+                        <InfoTip questionId={q.id} label={q.label} />
+                      </p>
+                      <FileUpload
+                        q={q}
+                        value={(value as string) ?? ""}
+                        onChange={(v) => onChange(q.id, v)}
+                      />
+                    </div>
+                  );
+                }
 
                 if (q.type === "multiselect") {
                   const selected = (value as string[] | undefined) ?? [];
                   return (
                     <div key={q.id}>
-                      <p className="text-sm font-medium text-stone-700 mb-2">{q.label}</p>
+                      <p className="text-sm font-medium text-stone-700 mb-2">
+                        {q.label}
+                        <InfoTip questionId={q.id} label={q.label} />
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {(q.options ?? []).map((opt) => {
                           const active = selected.includes(opt);
@@ -104,7 +244,10 @@ export default function DetailSectionStep({
                 if (q.type === "text") {
                   return (
                     <div key={q.id}>
-                      <label className="block text-sm font-medium text-stone-700 mb-1">{q.label}</label>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">
+                        {q.label}
+                        <InfoTip questionId={q.id} label={q.label} />
+                      </label>
                       <input
                         type="text"
                         value={(value as string) ?? ""}
@@ -119,7 +262,10 @@ export default function DetailSectionStep({
                 // select
                 return (
                   <div key={q.id}>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">{q.label}</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
+                      {q.label}
+                      <InfoTip questionId={q.id} label={q.label} />
+                    </label>
                     <select
                       value={(value as string) ?? ""}
                       onChange={(e) => onChange(q.id, e.target.value)}
@@ -137,6 +283,13 @@ export default function DetailSectionStep({
                 );
               })}
             </div>
+
+            {hiddenCount > 0 && (
+              <p className="mt-6 text-xs text-stone-300 italic">
+                {hiddenCount} question{hiddenCount > 1 ? "s" : ""} hidden — not applicable to your
+                selections.
+              </p>
+            )}
 
             <div className="flex items-center justify-between mt-12 pt-6 border-t border-stone-100">
               <button

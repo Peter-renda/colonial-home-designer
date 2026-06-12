@@ -1,6 +1,122 @@
-import { QuizSection } from "../types/quiz";
+import { QuizAnswers, QuizQuestion, QuizSection } from "../types/quiz";
+
+/** Answer values that mean "slab questions apply" (basements pour a slab too). */
+const SLAB_BASEMENT = ["Slab on grade", "Basement"];
+const CRAWLSPACE = ["Crawlspace"];
 
 export const QUIZ_SECTIONS: QuizSection[] = [
+  // ─────────────────────────────────────────────────────────────
+  // SITE — know the land before you design the house
+  // ─────────────────────────────────────────────────────────────
+  {
+    id: "site-analysis",
+    title: "Site Analysis",
+    subtitle: "Tell us about your lot so the design fits the land.",
+    group: "site",
+    questions: [
+      {
+        id: "topoMap",
+        label: "Topographic map / survey",
+        type: "file",
+        accept: "image/*",
+      },
+      {
+        id: "lotSize",
+        label: "Lot size",
+        type: "select",
+        options: ["Under 1/4 acre", "1/4 – 1/2 acre", "1/2 – 1 acre", "1 – 2 acres", "Over 2 acres"],
+      },
+      {
+        id: "streetFacing",
+        label: "Direction the front of the home will face",
+        type: "select",
+        options: ["North", "South", "East", "West"],
+      },
+      {
+        id: "lotSlope",
+        label: "Lot slope",
+        type: "select",
+        options: ["Flat (under 2%)", "Gentle (2–8%)", "Moderate (8–15%)", "Steep (over 15%)"],
+      },
+      {
+        id: "slopeDirection",
+        label: "Slope direction",
+        type: "select",
+        options: [
+          "Slopes down toward the street",
+          "Slopes down toward the rear",
+          "Slopes down to the left",
+          "Slopes down to the right",
+        ],
+        showIf: {
+          questionId: "lotSlope",
+          equalsAny: ["Gentle (2–8%)", "Moderate (8–15%)", "Steep (over 15%)"],
+        },
+      },
+      {
+        id: "soilType",
+        label: "Soil type",
+        type: "select",
+        options: [
+          "Unknown — needs soil test",
+          "Sandy / well-draining",
+          "Loam",
+          "Clay / expansive",
+          "Rock near surface",
+          "Fill / previously disturbed",
+        ],
+      },
+      {
+        id: "drainage",
+        label: "Drainage",
+        type: "select",
+        options: [
+          "Dry lot — drains well",
+          "Average",
+          "Wet spots after rain",
+          "High water table / poor drainage",
+        ],
+      },
+      {
+        id: "floodZone",
+        label: "Flood zone",
+        type: "select",
+        options: ["No — Zone X", "Yes — FEMA flood zone (A/AE)", "Not sure"],
+      },
+      {
+        id: "treeCoverage",
+        label: "Tree coverage",
+        type: "select",
+        options: ["Open / cleared", "Scattered trees", "Partially wooded", "Heavily wooded"],
+      },
+      {
+        id: "utilities",
+        label: "Utilities available",
+        type: "multiselect",
+        options: [
+          "Municipal water",
+          "Well required",
+          "Municipal sewer",
+          "Septic required",
+          "Natural gas at street",
+          "Underground electric",
+        ],
+      },
+      {
+        id: "setbacks",
+        label: "Required setbacks (if known)",
+        type: "text",
+        placeholder: "e.g. 30' front, 10' sides, 25' rear",
+      },
+      {
+        id: "siteRestrictions",
+        label: "Zoning / HOA restrictions",
+        type: "text",
+        placeholder: "e.g. max height 35', no detached structures...",
+      },
+    ],
+  },
+
   // ─────────────────────────────────────────────────────────────
   // STRUCTURAL — bones of the house
   // ─────────────────────────────────────────────────────────────
@@ -20,12 +136,14 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         label: "Slab depth",
         type: "select",
         options: ["4 in", "6 in"],
+        showIf: { questionId: "foundationType", equalsAny: SLAB_BASEMENT },
       },
       {
         id: "stoneBase",
         label: "Stone base",
         type: "select",
         options: ["3in", "6in"],
+        showIf: { questionId: "foundationType", equalsAny: SLAB_BASEMENT },
       },
       {
         id: "foundationSideInsulation",
@@ -38,12 +156,14 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         label: "Foundation bottom insulation",
         type: "select",
         options: ["Yes (R5)", "No"],
+        showIf: { questionId: "foundationType", equalsAny: SLAB_BASEMENT },
       },
       {
         id: "crawlspaceHeight",
-        label: "Crawlspace",
+        label: "Crawlspace height",
         type: "select",
-        options: ["No", "2'", "3'"],
+        options: ["2'", "3'"],
+        showIf: { questionId: "foundationType", equalsAny: CRAWLSPACE },
       },
     ],
   },
@@ -109,50 +229,6 @@ export const QUIZ_SECTIONS: QuizSection[] = [
       },
     ],
   },
-  {
-    id: "hvac",
-    title: "HVAC",
-    group: "structural",
-    questions: [
-      {
-        id: "floorReturns",
-        label: "Floor returns",
-        type: "select",
-        options: ["Oak - raised", "Oak - inlay", "Metal"],
-      },
-      {
-        id: "hvacSystem",
-        label: "HVAC system",
-        type: "select",
-        options: ["5 ton (one zone)", "(2) 2.5 ton (dual zone)"],
-      },
-      {
-        id: "airPurification",
-        label: "Air purification",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-      {
-        id: "smartThermostat",
-        label: "Smart thermostat",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-      {
-        id: "dehumidifier",
-        label: "Dehumidifier",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-      {
-        id: "freshAirVentilation",
-        label: "Fresh air ventilation",
-        type: "select",
-        options: ["Yes", "No"],
-      },
-    ],
-  },
-
   // ─────────────────────────────────────────────────────────────
   // EXTERIOR — what you see from outside
   // ─────────────────────────────────────────────────────────────
@@ -406,12 +482,14 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         label: "Rear porch (on slab/basement)",
         type: "select",
         options: ["10' x 20' concrete", "10' x 20' stamped concrete", "10' x 20' brick", "None"],
+        showIf: { questionId: "foundationType", equalsAny: SLAB_BASEMENT },
       },
       {
         id: "rearPorchStemwall",
         label: "Rear porch (on stemwall)",
         type: "select",
         options: ["10' x 20' concrete", "10' x 20' stamped concrete", "10' x 20' brick", "None"],
+        showIf: { questionId: "foundationType", equalsAny: CRAWLSPACE },
       },
       {
         id: "awning",
@@ -432,6 +510,7 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         label: "Rear door awning (slab/basement)",
         type: "select",
         options: ["Juliet awning", "Shed roof", "N/A"],
+        showIf: { questionId: "foundationType", equalsAny: SLAB_BASEMENT },
       },
       {
         id: "rearDoorAwningCorbelStyle",
@@ -444,6 +523,7 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         label: "Rear door awning (stemwall)",
         type: "select",
         options: ["Juliet awning", "Shed roof", "N/A"],
+        showIf: { questionId: "foundationType", equalsAny: CRAWLSPACE },
       },
     ],
   },
@@ -458,12 +538,14 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         label: "Side door awning (slab/basement)",
         type: "select",
         options: ["Juliet awning", "Shed roof", "N/A"],
+        showIf: { questionId: "foundationType", equalsAny: SLAB_BASEMENT },
       },
       {
         id: "sideDoorAwningStemwall",
         label: "Side door awning (stemwall)",
         type: "select",
         options: ["Juliet awning", "Shed roof", "N/A"],
+        showIf: { questionId: "foundationType", equalsAny: CRAWLSPACE },
       },
     ],
   },
@@ -1609,10 +1691,72 @@ export const QUIZ_SECTIONS: QuizSection[] = [
       },
     ],
   },
+
+  // ─────────────────────────────────────────────────────────────
+  // SYSTEMS — mechanicals, saved for last
+  // ─────────────────────────────────────────────────────────────
+  {
+    id: "hvac",
+    title: "HVAC",
+    group: "systems",
+    questions: [
+      {
+        id: "floorReturns",
+        label: "Floor returns",
+        type: "select",
+        options: ["Oak - raised", "Oak - inlay", "Metal"],
+      },
+      {
+        id: "hvacSystem",
+        label: "HVAC system",
+        type: "select",
+        options: ["5 ton (one zone)", "(2) 2.5 ton (dual zone)"],
+      },
+      {
+        id: "airPurification",
+        label: "Air purification",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+      {
+        id: "smartThermostat",
+        label: "Smart thermostat",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+      {
+        id: "dehumidifier",
+        label: "Dehumidifier",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+      {
+        id: "freshAirVentilation",
+        label: "Fresh air ventilation",
+        type: "select",
+        options: ["Yes", "No"],
+      },
+    ],
+  },
 ];
 
-export const GROUP_LABELS: Record<"structural" | "exterior" | "rooms", string> = {
+export const GROUP_LABELS: Record<"site" | "structural" | "exterior" | "rooms" | "systems", string> = {
+  site: "Site",
   structural: "Structural",
   exterior: "Exterior",
   rooms: "Rooms",
+  systems: "Systems",
 };
+
+/**
+ * Conditional visibility: a question with showIf is hidden unless the
+ * controlling answer matches. While the controlling question is still
+ * unanswered, everything stays visible.
+ */
+export function isQuestionVisible(q: QuizQuestion, answers: QuizAnswers): boolean {
+  if (!q.showIf) return true;
+  const raw = answers[q.showIf.questionId];
+  const value = Array.isArray(raw) ? raw.join(",") : (raw as string) ?? "";
+  if (value === "") return true;
+  return q.showIf.equalsAny.includes(value);
+}

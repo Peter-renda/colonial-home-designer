@@ -35,13 +35,15 @@ function quizAnswersToPreferences(answers: QuizAnswers): Preferences {
     return (v || fallback) as T;
   }
 
+  const isCrawlspace = get("foundationType") === "Crawlspace";
+
   return {
     foundationType: pick("foundationType", DEFAULT_PREFERENCES.foundationType),
     slabDepth: pick("slabDepth", DEFAULT_PREFERENCES.slabDepth),
     stoneBase: pick("stoneBase", DEFAULT_PREFERENCES.stoneBase),
     foundationSideInsulation: pick("foundationSideInsulation", DEFAULT_PREFERENCES.foundationSideInsulation),
     foundationBottomInsulation: pick("foundationBottomInsulation", DEFAULT_PREFERENCES.foundationBottomInsulation),
-    crawlspace: pick("crawlspaceHeight", DEFAULT_PREFERENCES.crawlspace) === "No" ? "No" : "Yes",
+    crawlspace: isCrawlspace ? "Yes" : "No",
 
     firstFloorCeilingHeight: pick("firstFloorCeilingHeight", DEFAULT_PREFERENCES.firstFloorCeilingHeight),
     secondFloorCeilingHeight: pick("secondFloorCeilingHeight", DEFAULT_PREFERENCES.secondFloorCeilingHeight),
@@ -118,14 +120,15 @@ function quizAnswersToPreferences(answers: QuizAnswers): Preferences {
       return "N/A";
     })(),
     rearPorch: (() => {
-      const v = get("rearPorchSlabBasement");
+      // crawlspace foundations use the stemwall porch variant
+      const v = isCrawlspace ? get("rearPorchStemwall") : get("rearPorchSlabBasement");
       if (v === "10' x 20' concrete") return "10' x 20' concrete";
       if (v === "10' x 20' stamped concrete") return "10' x 20' stamped concrete";
       if (v === "10' x 20' brick") return "10' x 20' brick";
       return "None";
     })(),
     rearDoorAwning: (() => {
-      const v = get("rearDoorAwningSlabBasement");
+      const v = isCrawlspace ? get("rearDoorAwningStemwall") : get("rearDoorAwningSlabBasement");
       if (v === "Juliet awning") return "Juliet awning";
       if (v === "Shed roof") return "Shed roof";
       return "N/A";
