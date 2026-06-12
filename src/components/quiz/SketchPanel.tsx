@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { QuizAnswers, QuizGroup } from "../../types/quiz";
+import { paramsFromAnswers } from "../../lib/houseParams";
 import {
   StandaloneFrontElevationSideGable,
   StandaloneAssembly,
 } from "./PencilExterior";
+
+const HouseViewer = dynamic(() => import("../three/HouseViewer"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center text-xs text-stone-400">
+      Loading 3D model…
+    </div>
+  ),
+});
 
 interface Props {
   group: QuizGroup;
@@ -15,6 +26,84 @@ interface Props {
 }
 
 export default function SketchPanel({ group, sectionId, sketchKey, answers }: Props) {
+  const [view, setView] = useState<"model" | "sketch">("model");
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-1 border-b border-stone-200">
+        {(
+          [
+            ["model", "3D Model"],
+            ["sketch", "Detail Sketch"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={`px-4 py-2 text-xs uppercase tracking-[0.15em] border-b-2 -mb-px transition-colors ${
+              view === key
+                ? "border-stone-700 text-stone-800"
+                : "border-transparent text-stone-400 hover:text-stone-600"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === "model" ? (
+        <LiveModelPanel answers={answers} />
+      ) : (
+        <LegacySketch group={group} sectionId={sectionId} sketchKey={sketchKey} answers={answers} />
+      )}
+    </div>
+  );
+}
+
+// ─── LIVE 3D MODEL — rebuilds as every answer changes ───────────
+function LiveModelPanel({ answers }: { answers: QuizAnswers }) {
+  const params = useMemo(() => paramsFromAnswers(answers), [answers]);
+
+  const specLine = [
+    params.facade === "brick" ? "Brick" : params.facade === "cedar" ? "Cedar lap" : "Hardiplank",
+    params.roofShape === "hip"
+      ? "hip roof"
+      : params.roofShape === "gableFrontGable"
+        ? "gable roof with front gable"
+        : "side-gable roof",
+    params.dormers !== "none" ? `${params.dormers} dormers` : null,
+    params.shutters ? "shutters" : null,
+    params.portico !== "none" ? `${params.portico} portico` : null,
+    params.garage === "none"
+      ? null
+      : params.garage === "front2"
+        ? "2-car front-load garage"
+        : params.garage === "side3"
+          ? "3-car side-load garage"
+          : "2-car garage",
+    params.chimney ? "chimney" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
+        Your home — live 3D model
+      </p>
+      <div className="bg-[#e9ece3] border border-stone-200 w-full aspect-[4/3] overflow-hidden">
+        <HouseViewer params={params} />
+      </div>
+      <p className="text-xs text-stone-400 leading-relaxed">
+        {params.widthFt}&prime; &times; {params.depthFt}&prime; two-story colonial · {specLine}.
+        <span className="block mt-1 text-stone-300">
+          Drag to orbit · scroll to zoom · the model rebuilds as you make selections.
+        </span>
+      </p>
+    </div>
+  );
+}
+
+function LegacySketch({ group, sectionId, sketchKey, answers }: Props) {
   if (group === "structural") {
     return <StructuralSketch sectionId={sectionId} answers={answers} />;
   }

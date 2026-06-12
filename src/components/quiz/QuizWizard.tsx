@@ -15,6 +15,7 @@ import NonNegotiablesStep from "./NonNegotiablesStep";
 import BudgetStep from "./BudgetStep";
 import DetailSectionStep from "./DetailSectionStep";
 import SummaryPage from "./SummaryPage";
+import ConstructionDocsPage from "./ConstructionDocsPage";
 
 type Phase =
   | "welcome"
@@ -23,6 +24,7 @@ type Phase =
   | "budget"
   | { type: "detail"; index: number }
   | "summary"
+  | "docs"
   | "bom";
 
 function quizAnswersToPreferences(answers: QuizAnswers): Preferences {
@@ -267,6 +269,19 @@ export default function QuizWizard() {
         budget={budget}
         answers={answers}
         onEdit={(i) => setPhase({ type: "detail", index: i })}
+        onViewBOM={() => setPhase("bom")}
+        onGenerateDocs={() => setPhase("docs")}
+      />
+    );
+  }
+
+  if (phase === "docs") {
+    return (
+      <ConstructionDocsPage
+        recommendedStyle={recommendedStyle}
+        budget={budget}
+        answers={answers}
+        onBack={() => setPhase("summary")}
         onViewBOM={() => setPhase("bom")}
       />
     );

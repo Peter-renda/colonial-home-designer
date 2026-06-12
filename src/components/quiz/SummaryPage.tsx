@@ -11,6 +11,7 @@ interface Props {
   answers: QuizAnswers;
   onEdit: (sectionIndex: number) => void;
   onViewBOM: () => void;
+  onGenerateDocs: () => void;
 }
 
 const BUDGET_LABELS: Record<string, string> = {
@@ -36,6 +37,7 @@ export default function SummaryPage({
   answers,
   onEdit,
   onViewBOM,
+  onGenerateDocs,
 }: Props) {
   return (
     <div className="min-h-screen bg-stone-50">
@@ -108,12 +110,18 @@ export default function SummaryPage({
           })}
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
           <button
             onClick={onViewBOM}
+            className="border border-stone-300 text-stone-600 px-10 py-4 text-sm uppercase tracking-[0.15em] hover:border-stone-500 transition-colors"
+          >
+            Bill of Materials
+          </button>
+          <button
+            onClick={onGenerateDocs}
             className="bg-stone-800 text-white px-10 py-4 text-sm uppercase tracking-[0.15em] hover:bg-stone-700 transition-colors"
           >
-            View Bill of Materials →
+            Generate Construction Documents →
           </button>
         </div>
       </div>
