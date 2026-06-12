@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { QuizAnswers, QuizGroup } from "../../types/quiz";
-import { paramsFromAnswers } from "../../lib/houseParams";
+import { BuildStage, paramsFromAnswers } from "../../lib/houseParams";
+import { foundationSteps, FOUNDATION_STEP_COUNT } from "../three/ConstructionStages";
 import {
   StandaloneFrontElevationSideGable,
   StandaloneAssembly,
@@ -51,7 +52,7 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
         ))}
       </div>
       {view === "model" ? (
-        <LiveModelPanel answers={answers} />
+        <LiveModelPanel answers={answers} sectionId={sectionId} />
       ) : (
         <LegacySketch group={group} sectionId={sectionId} sketchKey={sketchKey} answers={answers} />
       )}
@@ -59,9 +60,39 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
   );
 }
 
+function stageForSection(sectionId: string): BuildStage {
+  if (sectionId === "site-analysis") return "site";
+  if (sectionId === "foundation") return "foundation";
+  if (sectionId === "framing") return "framing";
+  return "complete";
+}
+
 // ─── LIVE 3D MODEL — rebuilds as every answer changes ───────────
-function LiveModelPanel({ answers }: { answers: QuizAnswers }) {
+function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionId: string }) {
   const params = useMemo(() => paramsFromAnswers(answers), [answers]);
+  const stage = stageForSection(sectionId);
+
+  // ── foundation build animation ──
+  const [buildStep, setBuildStep] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const lastStep = FOUNDATION_STEP_COUNT - 1;
+  const playing = stage === "foundation" && autoPlay && buildStep < lastStep;
+
+  // restart the sequence whenever the foundation type changes
+  useEffect(() => {
+    if (stage === "foundation") {
+      setBuildStep(0);
+      setAutoPlay(true);
+    }
+  }, [stage, params.foundationType]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const t = setTimeout(() => setBuildStep((s) => Math.min(s + 1, lastStep)), 1500);
+    return () => clearTimeout(t);
+  }, [playing, buildStep, lastStep]);
+
+  const stepLabels = foundationSteps(params.foundationType);
 
   const specLine = [
     params.facade === "brick" ? "Brick" : params.facade === "cedar" ? "Cedar lap" : "Hardiplank",
@@ -85,26 +116,226 @@ function LiveModelPanel({ answers }: { answers: QuizAnswers }) {
     .filter(Boolean)
     .join(" · ");
 
+  const heading =
+    stage === "site"
+      ? "Your lot — live 3D site model"
+      : stage === "foundation"
+        ? "Your foundation — watch it being built"
+        : stage === "framing"
+          ? "Your framing — live 3D model"
+          : "Your home — live 3D model";
+
   return (
     <div className="space-y-4">
-      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
-        Your home — live 3D model
-      </p>
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">{heading}</p>
       <div className="bg-[#e9ece3] border border-stone-200 w-full aspect-[4/3] overflow-hidden">
-        <HouseViewer params={params} />
+        <HouseViewer params={params} stage={stage} buildStep={buildStep} />
       </div>
-      <p className="text-xs text-stone-400 leading-relaxed">
-        {params.widthFt}&prime; &times; {params.depthFt}&prime; two-story colonial · {specLine}.
-        <span className="block mt-1 text-stone-300">
-          Drag to orbit · scroll to zoom · the model rebuilds as you make selections.
-        </span>
+
+      {stage === "foundation" && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {stepLabels.map((label, i) => (
+              <button
+                key={label}
+                onClick={() => {
+                  setAutoPlay(false);
+                  setBuildStep(i);
+                }}
+                className={`px-2.5 py-1.5 text-[10px] uppercase tracking-wider border transition-colors ${
+                  i === buildStep
+                    ? "border-stone-700 bg-stone-800 text-white"
+                    : i < buildStep
+                      ? "border-stone-300 bg-stone-100 text-stone-500"
+                      : "border-stone-200 bg-white text-stone-400 hover:border-stone-400"
+                }`}
+              >
+                {i + 1}. {label}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setBuildStep(0);
+                setAutoPlay(true);
+              }}
+              className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-stone-400 hover:text-stone-600 transition-colors"
+              title="Replay the build"
+            >
+              ↻ Replay
+            </button>
+          </div>
+          <p className="text-xs text-stone-400 leading-relaxed">
+            {foundationStepCaption(params.foundationType, buildStep)}
+          </p>
+        </div>
+      )}
+
+      {stage === "site" && <SiteAnalysisReport answers={answers} />}
+
+      {stage === "framing" && (
+        <p className="text-xs text-stone-400 leading-relaxed">
+          {params.framingDetail.studLabel} studs at 16&Prime; o.c. · first floor{" "}
+          {params.firstFloorFt}&prime;, second floor {params.secondFloorFt}&prime; — stud lengths
+          update as you change ceiling heights.
+          <span className="block mt-1 text-stone-300">
+            Drag to orbit · scroll to zoom · the skeleton rebuilds as you make selections.
+          </span>
+        </p>
+      )}
+
+      {stage === "complete" && (
+        <p className="text-xs text-stone-400 leading-relaxed">
+          {params.widthFt}&prime; &times; {params.depthFt}&prime; two-story colonial · {specLine}.
+          <span className="block mt-1 text-stone-300">
+            Drag to orbit · scroll to zoom · the model rebuilds as you make selections.
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function foundationStepCaption(type: string, step: number): string {
+  const captions: Record<string, string[]> = {
+    slab: [
+      "The pad is cleared, graded level, and the footprint is staked with chalk lines.",
+      "Topsoil is stripped and the slab area excavated; perimeter trenches go a little deeper for the thickened edge.",
+      "Concrete footings are poured around the perimeter to spread the building's weight into undisturbed soil.",
+      "Compacted stone goes down as a capillary break, rigid foam insulates under the slab, and form boards shape the pour.",
+      "Concrete is poured, screeded level, and cured — edge insulation wraps the slab where it meets outside air.",
+    ],
+    crawlspace: [
+      "The pad is cleared, graded level, and the footprint is staked with chalk lines.",
+      "A shallow excavation takes the footings below the frost line.",
+      "Concrete footings are poured around the perimeter to carry the stem walls.",
+      "Block stem walls are laid up course by course, raising the floor 2–3 feet above grade.",
+      "Soil is backfilled against the walls, vents ventilate the crawl, and the sill plate is bolted on — ready for floor framing.",
+    ],
+    basement: [
+      "The pad is cleared, graded level, and the footprint is staked with chalk lines.",
+      "The big dig — roughly 8 feet down, with extra working room around the perimeter.",
+      "Concrete footings are poured at the base of the excavation to carry the walls.",
+      "Full-height concrete walls are formed and poured, then coated with waterproofing below grade.",
+      "The basement slab is poured inside, soil is backfilled against the walls, and the sill plate is bolted on.",
+    ],
+  };
+  return (captions[type] ?? captions.slab)[step] ?? "";
+}
+
+// ─── SITE ANALYSIS — derived insights from the lot answers ──────
+function SiteAnalysisReport({ answers }: { answers: QuizAnswers }) {
+  const slope = ans(answers, "lotSlope");
+  const slopeDir = ans(answers, "slopeDirection");
+  const soil = ans(answers, "soilType");
+  const drainage = ans(answers, "drainage");
+  const flood = ans(answers, "floodZone");
+  const trees = ans(answers, "treeCoverage");
+  const facing = ans(answers, "streetFacing");
+  const utilities = multiAns(answers, "utilities");
+
+  const insights: string[] = [];
+
+  if (slope.startsWith("Flat")) {
+    insights.push("Flat lot — a slab-on-grade foundation is the most economical fit, with minimal grading.");
+  } else if (slope.startsWith("Gentle")) {
+    insights.push("Gentle slope — a crawlspace absorbs the grade change with a few block courses instead of costly fill.");
+  } else if (slope.startsWith("Moderate")) {
+    insights.push("Moderate slope — a crawlspace or walkout basement works with the grade; budget for stepped footings.");
+  } else if (slope.startsWith("Steep")) {
+    insights.push("Steep lot — plan on an engineered foundation, retaining walls, and a walkout basement on the downhill side.");
+  }
+
+  if (slopeDir.includes("rear")) {
+    insights.push("Falling toward the rear is ideal for a walkout basement and keeps water moving away from the entry.");
+  } else if (slopeDir.includes("street")) {
+    insights.push("Falling toward the street drains well, but check the driveway grade — keep it under ~10%.");
+  }
+
+  if (soil.startsWith("Clay")) {
+    insights.push("Expansive clay swells when wet — footings need engineering and gutters must discharge well away from the house.");
+  } else if (soil.startsWith("Rock")) {
+    insights.push("Rock near the surface makes basement excavation expensive — slab or crawlspace will save real money.");
+  } else if (soil.startsWith("Fill")) {
+    insights.push("Fill soil must be compacted, tested, or excavated to undisturbed ground before footings are poured.");
+  } else if (soil.startsWith("Unknown")) {
+    insights.push("Order a geotechnical (soils) report before finalizing the foundation — it's a few hundred dollars that prevents five-figure surprises.");
+  } else if (soil.startsWith("Sandy")) {
+    insights.push("Sandy, well-draining soil is friendly to any foundation type, including a basement.");
+  }
+
+  if (drainage.startsWith("High water") || drainage.startsWith("Wet")) {
+    insights.push("With poor drainage, avoid a basement or invest in serious waterproofing — plan perimeter drains and swales either way.");
+  }
+
+  if (flood.startsWith("Yes")) {
+    insights.push("In a FEMA flood zone: expect flood insurance, an elevated foundation (stemwall with flood vents), and a survey of the base flood elevation.");
+  } else if (flood.startsWith("Not sure")) {
+    insights.push("Look up your parcel on the FEMA flood map — flood-zone status changes insurance and foundation design.");
+  }
+
+  if (trees.startsWith("Heavily")) {
+    insights.push("Heavy tree cover means real clearing costs — flag the specimens worth saving before the excavator arrives.");
+  } else if (trees.startsWith("Partially")) {
+    insights.push("Keep mature trees on the south and west where their shade cuts summer cooling loads.");
+  }
+
+  if (facing === "South") {
+    insights.push("South-facing front: the facade gets all-day sun; the rear porch stays comfortably shaded.");
+  } else if (facing === "North") {
+    insights.push("North-facing front: the rear of the home gets the southern sun — perfect for the kitchen, living room, and porch.");
+  } else if (facing === "West") {
+    insights.push("West-facing front: strong afternoon sun on the facade — the portico and shutters earn their keep.");
+  } else if (facing === "East") {
+    insights.push("East-facing front: gentle morning light in the front rooms, sunsets over the back yard.");
+  }
+
+  if (utilities.includes("Septic required")) {
+    insights.push("Septic requires a perc test — the drain field location can dictate where the house sits, so test before siting.");
+  }
+  if (utilities.includes("Well required")) {
+    insights.push("A well must keep code distance from the septic field (often 50–100') — plan both locations together.");
+  }
+  if (!utilities.includes("Natural gas at street") && utilities.length > 0) {
+    insights.push("No natural gas at the street — consider electric/induction cooking, heat-pump HVAC, and a heat-pump or electric water heater.");
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="border border-stone-200 bg-white">
+        <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-stone-400 border-b border-stone-100">
+          Site analysis
+        </div>
+        <div className="px-3 py-3">
+          {insights.length === 0 ? (
+            <p className="text-xs text-stone-300 italic">
+              Answer the questions on the left and the site analysis will build itself here.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {insights.map((s, i) => (
+                <li key={i} className="text-xs text-stone-600 leading-relaxed flex gap-2">
+                  <span className="text-stone-300 flex-shrink-0">▸</span>
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-stone-300 leading-relaxed">
+        For a complete site analysis, also gather: a boundary survey/plat, geotechnical soils
+        report, perc test (if septic), FEMA flood certificate, utility locates, and any HOA or
+        deed restrictions.
       </p>
     </div>
   );
 }
 
 function LegacySketch({ group, sectionId, sketchKey, answers }: Props) {
-  if (group === "structural") {
+  if (group === "site") {
+    return <SitePlanSketch answers={answers} />;
+  }
+  if (group === "structural" || group === "systems") {
     return <StructuralSketch sectionId={sectionId} answers={answers} />;
   }
   if (group === "exterior") {
@@ -113,6 +344,83 @@ function LegacySketch({ group, sectionId, sketchKey, answers }: Props) {
   const prompt = buildSketchPrompt(group, sectionId, sketchKey, answers);
   const label = (sketchKey ?? sectionId).replace(/-/g, " ");
   return <SketchedImage prompt={prompt} label={label} />;
+}
+
+// ─── SITE — uploaded topo or schematic site plan ────────────────
+function SitePlanSketch({ answers }: { answers: QuizAnswers }) {
+  const topo = ans(answers, "topoMap");
+  const slope = ans(answers, "lotSlope");
+  const sloped = !!slope && !slope.startsWith("Flat");
+
+  if (topo.startsWith("data:")) {
+    return (
+      <div className="space-y-4">
+        <p className="text-xs uppercase tracking-[0.15em] text-stone-400">Your topo map</p>
+        <div className="bg-white border border-stone-200 w-full overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={topo} alt="Uploaded topographic map" className="w-full h-auto" />
+        </div>
+        <p className="text-xs text-stone-400 leading-relaxed">
+          Uploaded survey/topo — also draped over the 3D terrain in the model view.
+        </p>
+      </div>
+    );
+  }
+
+  // schematic site plan: lot, footprint, setbacks, contours
+  return (
+    <div className="space-y-4">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">Schematic site plan</p>
+      <svg viewBox="0 0 360 300" className="w-full h-auto bg-stone-50 border border-stone-200">
+        <rect x="0" y="0" width="360" height="300" fill="#f3f4ee" />
+        {/* street */}
+        <rect x="0" y="262" width="360" height="38" fill="#d8d4c8" />
+        <line x1="0" y1="281" x2="360" y2="281" stroke="#fafaf7" strokeWidth="2" strokeDasharray="14 10" />
+        {/* lot */}
+        <rect x="50" y="20" width="260" height="230" fill="#e3e8d8" stroke="#7c7259" strokeWidth="1.5" />
+        {/* contour lines if sloped */}
+        {sloped &&
+          [0, 1, 2, 3, 4].map((i) => (
+            <path
+              key={i}
+              d={`M 50 ${60 + i * 40} C 140 ${48 + i * 40}, 230 ${72 + i * 40}, 310 ${56 + i * 40}`}
+              fill="none"
+              stroke="#a59a78"
+              strokeWidth="0.8"
+              strokeDasharray="3 3"
+            />
+          ))}
+        {/* setback dashed envelope */}
+        <rect x="80" y="50" width="200" height="160" fill="none" stroke="#b08968" strokeWidth="1" strokeDasharray="6 4" />
+        {/* footprint */}
+        <rect x="130" y="120" width="100" height="68" fill="#fffdf4" stroke="#4a4543" strokeWidth="1.4" />
+        <text x="180" y="157" textAnchor="middle" fontSize="9" fill="#7a7158">
+          House
+        </text>
+        {/* driveway */}
+        <rect x="216" y="188" width="22" height="74" fill="#cfcabc" stroke="#9b9286" strokeWidth="0.6" />
+        {/* walkway */}
+        <rect x="176" y="188" width="8" height="74" fill="#e6e1d2" stroke="#9b9286" strokeWidth="0.5" />
+        {/* north arrow */}
+        <g transform="translate(330, 42)">
+          <circle r="13" fill="#fffdf4" stroke="#7c7259" strokeWidth="0.8" />
+          <polygon points="0,-9 4,5 0,2 -4,5" fill="#4a4543" />
+          <text y="24" textAnchor="middle" fontSize="8" fill="#7a7158">
+            N
+          </text>
+        </g>
+        <text x="180" y="294" textAnchor="middle" fontSize="8" fill="#8a8270">
+          Street
+        </text>
+        <text x="86" y="62" fontSize="7" fill="#b08968">
+          setback line
+        </text>
+      </svg>
+      <p className="text-xs text-stone-400 leading-relaxed">
+        Schematic only — upload a topo map or survey for a site plan based on your actual lot.
+      </p>
+    </div>
+  );
 }
 
 // ─── EXTERIOR — pencil sketch from the House Design handoff ─────

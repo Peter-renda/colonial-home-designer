@@ -1,7 +1,7 @@
 "use client";
 
 import { ArchitecturalStyle, QuizAnswers } from "../../types/quiz";
-import { QUIZ_SECTIONS } from "../../data/quizSections";
+import { QUIZ_SECTIONS, isQuestionVisible } from "../../data/quizSections";
 import StyleResultBadge from "./StyleResultBadge";
 
 interface Props {
@@ -70,6 +70,7 @@ export default function SummaryPage({
         <div className="space-y-4 mb-10">
           {QUIZ_SECTIONS.map((section, i) => {
             const sectionAnswers = section.questions
+              .filter((q) => isQuestionVisible(q, answers))
               .map((q) => ({ q, value: answers[q.id] }))
               .filter(({ value }) => value !== undefined && value !== "" && (Array.isArray(value) ? value.length > 0 : true));
 
@@ -98,7 +99,11 @@ export default function SummaryPage({
                         <div key={q.id} className="flex justify-between gap-2 text-xs">
                           <span className="text-stone-400 truncate max-w-[140px]">{q.label}</span>
                           <span className="text-stone-700 text-right">
-                            {Array.isArray(value) ? value.join(", ") : String(value)}
+                            {q.type === "file"
+                              ? "Uploaded ✓"
+                              : Array.isArray(value)
+                                ? value.join(", ")
+                                : String(value)}
                           </span>
                         </div>
                       ))}

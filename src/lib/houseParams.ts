@@ -18,6 +18,42 @@ export type TransomStyle = "none" | "fanlight" | "rectangular";
 export type FacadeKind = "brick" | "hardiplank" | "cedar";
 export type FoundationKind = "slab" | "crawlspace" | "basement";
 
+/** Which construction stage the 3D viewer renders. */
+export type BuildStage = "site" | "foundation" | "framing" | "complete";
+
+export type SlopeGrade = "flat" | "gentle" | "moderate" | "steep";
+export type SlopeDirection = "front" | "rear" | "left" | "right";
+export type TreeCoverage = "open" | "scattered" | "partial" | "wooded";
+
+export interface SiteParams {
+  slope: SlopeGrade;
+  slopeDir: SlopeDirection;
+  trees: TreeCoverage;
+  /** Approximate lot square side, ft (derived from acreage). */
+  lotSideFt: number;
+  /** Compass bearing the front door faces: N=0, E=90, S=180, W=270. */
+  streetFacingDeg: number;
+  /** Uploaded topo map (data URL) draped over the terrain, if provided. */
+  topoMapUrl: string | null;
+}
+
+export interface FoundationDetail {
+  slabDepthIn: number;
+  stoneBaseIn: number;
+  sideInsulation: boolean;
+  bottomInsulation: boolean;
+  /** Crawlspace clearance, ft (2 or 3). */
+  crawlHeightFt: number;
+}
+
+export interface FramingDetail {
+  /** Stud depth, ft — 2x4 → 0.292, 2x6 → 0.458 */
+  studDepthFt: number;
+  studLabel: "2x4" | "2x6";
+  sheathing: "osb" | "zip";
+  floorSystem: "truss" | "ijoist";
+}
+
 export interface HouseParams {
   /** Front wall length (x axis), ft */
   widthFt: number;
@@ -66,6 +102,10 @@ export interface HouseParams {
   sunroom: "none" | "left" | "right";
   finishedThirdFloor: boolean;
   finishedBasement: boolean;
+
+  site: SiteParams;
+  foundationDetail: FoundationDetail;
+  framingDetail: FramingDetail;
 }
 
 function ans(answers: QuizAnswers, id: string): string {
@@ -145,6 +185,50 @@ export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
   const garageDoor = ans(answers, "garageDoorLevel");
   const frontDoor = ans(answers, "frontDoorLevel");
 
+  // ── site ──
+  const slopeRaw = ans(answers, "lotSlope");
+  const slope: SlopeGrade = slopeRaw.startsWith("Steep")
+    ? "steep"
+    : slopeRaw.startsWith("Moderate")
+      ? "moderate"
+      : slopeRaw.startsWith("Gentle")
+        ? "gentle"
+        : "flat";
+  const slopeDirRaw = ans(answers, "slopeDirection");
+  const slopeDir: SlopeDirection = slopeDirRaw.includes("street")
+    ? "front"
+    : slopeDirRaw.includes("rear")
+      ? "rear"
+      : slopeDirRaw.includes("left")
+        ? "left"
+        : "right";
+  const treesRaw = ans(answers, "treeCoverage");
+  const trees: TreeCoverage = treesRaw.startsWith("Heavily")
+    ? "wooded"
+    : treesRaw.startsWith("Partially")
+      ? "partial"
+      : treesRaw.startsWith("Scattered")
+        ? "scattered"
+        : "open";
+  const lotRaw = ans(answers, "lotSize");
+  const acres = lotRaw.startsWith("Over 2")
+    ? 2.5
+    : lotRaw.startsWith("1 –")
+      ? 1.5
+      : lotRaw.startsWith("1/2")
+        ? 0.75
+        : lotRaw.startsWith("1/4")
+          ? 0.375
+          : 0.22;
+  const lotSideFt = Math.min(Math.sqrt(acres * 43560), 300);
+  const topo = ans(answers, "topoMap");
+
+  // ── foundation detail ──
+  const crawlRaw = ans(answers, "crawlspaceHeight");
+
+  // ── framing detail ──
+  const wallRaw = ans(answers, "exteriorWall");
+
   return {
     widthFt: COLONIAL_MODEL_1.frontDimension,
     depthFt: COLONIAL_MODEL_1.sideDimension,
@@ -177,7 +261,10 @@ export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
     frontPorch: frontPorchRaw !== "" && frontPorchRaw !== "None",
     fullWidthPorch: frontPorchRaw.startsWith("38'"),
     rearPorch: (() => {
-      const v = ans(answers, "rearPorchSlabBasement");
+      const v =
+        foundationType === "crawlspace"
+          ? ans(answers, "rearPorchStemwall")
+          : ans(answers, "rearPorchSlabBasement");
       return v !== "" && v !== "None";
     })(),
     patioDoor: (() => {
@@ -198,6 +285,34 @@ export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
       return v !== "" && v !== "None";
     })(),
     finishedBasement: ans(answers, "finishedBasement") === "Yes",
+
+    site: {
+      slope,
+      slopeDir,
+      trees,
+      lotSideFt,
+      streetFacingDeg: (() => {
+        const f = ans(answers, "streetFacing");
+        if (f === "North") return 0;
+        if (f === "East") return 90;
+        if (f === "West") return 270;
+        return 180;
+      })(),
+      topoMapUrl: topo.startsWith("data:") ? topo : null,
+    },
+    foundationDetail: {
+      slabDepthIn: ans(answers, "slabDepth") === "6 in" ? 6 : 4,
+      stoneBaseIn: ans(answers, "stoneBase") === "3in" ? 3 : 6,
+      sideInsulation: ans(answers, "foundationSideInsulation") !== "No",
+      bottomInsulation: ans(answers, "foundationBottomInsulation") !== "No",
+      crawlHeightFt: crawlRaw === "3'" ? 3 : 2,
+    },
+    framingDetail: {
+      studDepthFt: wallRaw === "2x4" ? 3.5 / 12 : 5.5 / 12,
+      studLabel: wallRaw === "2x4" ? "2x4" : "2x6",
+      sheathing: ans(answers, "sheathing") === "7/16 OSB" ? "osb" : "zip",
+      floorSystem: ans(answers, "floorSystem") === "I-joists" ? "ijoist" : "truss",
+    },
   };
 }
 
