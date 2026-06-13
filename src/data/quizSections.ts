@@ -21,10 +21,24 @@ export const QUIZ_SECTIONS: QuizSection[] = [
         accept: "image/*",
       },
       {
-        id: "lotSize",
-        label: "Lot size",
-        type: "select",
-        options: ["Under 1/4 acre", "1/4 – 1/2 acre", "1/2 – 1 acre", "1 – 2 acres", "Over 2 acres"],
+        id: "lotDimensions",
+        label: "Lot dimensions",
+        type: "dimensions",
+        placeholder: "ft",
+      },
+      {
+        id: "siteAddress",
+        label: "Property address",
+        type: "text",
+        placeholder: "123 Main St, Town, State",
+        optional: true,
+      },
+      {
+        id: "siteCoordinates",
+        label: "Latitude, longitude",
+        type: "text",
+        placeholder: "e.g. 40.71, -74.01",
+        optional: true,
       },
       {
         id: "streetFacing",
@@ -40,14 +54,9 @@ export const QUIZ_SECTIONS: QuizSection[] = [
       },
       {
         id: "slopeDirection",
-        label: "Slope direction",
+        label: "Slope direction (which way the land falls)",
         type: "select",
-        options: [
-          "Slopes down toward the street",
-          "Slopes down toward the rear",
-          "Slopes down to the left",
-          "Slopes down to the right",
-        ],
+        options: ["North", "East", "South", "West"],
         showIf: {
           questionId: "lotSlope",
           equalsAny: ["Gentle (2–8%)", "Moderate (8–15%)", "Steep (over 15%)"],

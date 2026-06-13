@@ -1,10 +1,11 @@
 "use client";
 
-import { ArchitecturalStyle, QuizAnswers } from "../../types/quiz";
-import { QUIZ_SECTIONS, isQuestionVisible } from "../../data/quizSections";
+import { ArchitecturalStyle, QuizAnswers, QuizSection } from "../../types/quiz";
+import { isQuestionVisible } from "../../data/quizSections";
 import StyleResultBadge from "./StyleResultBadge";
 
 interface Props {
+  sections: QuizSection[];
   recommendedStyle: ArchitecturalStyle;
   nonNegotiables: string[];
   budget: string;
@@ -31,6 +32,7 @@ const NON_NEG_LABELS: Record<string, string> = {
 };
 
 export default function SummaryPage({
+  sections,
   recommendedStyle,
   nonNegotiables,
   budget,
@@ -68,7 +70,7 @@ export default function SummaryPage({
         </div>
 
         <div className="space-y-4 mb-10">
-          {QUIZ_SECTIONS.map((section, i) => {
+          {sections.map((section, i) => {
             const sectionAnswers = section.questions
               .filter((q) => isQuestionVisible(q, answers))
               .map((q) => ({ q, value: answers[q.id] }))

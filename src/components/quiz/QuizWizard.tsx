@@ -11,18 +11,24 @@ import BomTable from "../BomTable";
 
 import WelcomePage from "./WelcomePage";
 import StyleQuizStep from "./StyleQuizStep";
+import StyleResultPage from "./StyleResultPage";
 import NonNegotiablesStep from "./NonNegotiablesStep";
 import BudgetStep from "./BudgetStep";
+import LotStatusStep from "./LotStatusStep";
 import DetailSectionStep from "./DetailSectionStep";
+import SiteAnalysisTalk from "./SiteAnalysisTalk";
 import SummaryPage from "./SummaryPage";
 import ConstructionDocsPage from "./ConstructionDocsPage";
 
 type Phase =
   | "welcome"
   | "style-quiz"
+  | "style-result"
   | "non-negotiables"
   | "budget"
+  | "lot-status"
   | { type: "detail"; index: number }
+  | "site-talk"
   | "summary"
   | "docs"
   | "bom";
@@ -179,6 +185,7 @@ export default function QuizWizard() {
   const [styleScores, setStyleScores] = useState<StyleScores>({ Federal: 0, Georgian: 0, "Greek Revival": 0 });
   const [nonNegotiables, setNonNegotiables] = useState<string[]>([]);
   const [budget, setBudget] = useState<string>("");
+  const [hasLot, setHasLot] = useState<boolean | null>(null);
   const [answers, setAnswers] = useState<QuizAnswers>({});
 
   function updateAnswer(id: string, value: string | string[]) {
@@ -187,6 +194,14 @@ export default function QuizWizard() {
 
   const prefs = useMemo(() => quizAnswersToPreferences(answers), [answers]);
   const takeoffResult = useMemo(() => runTakeoff(prefs, COLONIAL_MODEL_1), [prefs]);
+
+  // When the buyer hasn't bought a lot, drop the site questions entirely.
+  const sections = useMemo(
+    () => (hasLot === false ? QUIZ_SECTIONS.filter((s) => s.group !== "site") : QUIZ_SECTIONS),
+    [hasLot]
+  );
+  const firstNonSite = sections.findIndex((s) => s.group !== "site");
+  const lastSiteIndex = firstNonSite - 1; // -1 when there is no site group
 
   // ── Phase rendering ──────────────────────────────────────────
 
@@ -200,9 +215,20 @@ export default function QuizWizard() {
         onComplete={(style, scores) => {
           setRecommendedStyle(style);
           setStyleScores(scores);
-          setPhase("non-negotiables");
+          setPhase("style-result");
         }}
         onBack={() => setPhase("welcome")}
+      />
+    );
+  }
+
+  if (phase === "style-result") {
+    return (
+      <StyleResultPage
+        recommendedStyle={recommendedStyle}
+        scores={styleScores}
+        onContinue={() => setPhase("non-negotiables")}
+        onBack={() => setPhase("style-quiz")}
       />
     );
   }
@@ -214,7 +240,7 @@ export default function QuizWizard() {
           setNonNegotiables(selected);
           setPhase("budget");
         }}
-        onBack={() => setPhase("style-quiz")}
+        onBack={() => setPhase("style-result")}
       />
     );
   }
@@ -224,30 +250,58 @@ export default function QuizWizard() {
       <BudgetStep
         onContinue={(b) => {
           setBudget(b);
-          setPhase({ type: "detail", index: 0 });
+          setPhase("lot-status");
         }}
         onBack={() => setPhase("non-negotiables")}
       />
     );
   }
 
+  if (phase === "lot-status") {
+    return (
+      <LotStatusStep
+        initial={hasLot}
+        onContinue={(bought) => {
+          setHasLot(bought);
+          setPhase({ type: "detail", index: 0 });
+        }}
+        onBack={() => setPhase("budget")}
+      />
+    );
+  }
+
+  if (phase === "site-talk") {
+    return (
+      <SiteAnalysisTalk
+        answers={answers}
+        recommendedStyle={recommendedStyle}
+        onContinue={() => setPhase({ type: "detail", index: Math.max(0, firstNonSite) })}
+        onBack={() => setPhase({ type: "detail", index: Math.max(0, lastSiteIndex) })}
+      />
+    );
+  }
+
   if (typeof phase === "object" && phase.type === "detail") {
-    const { index } = phase;
-    const section = QUIZ_SECTIONS[index];
-    const sameGroupSections = QUIZ_SECTIONS.filter((s) => s.group === section.group);
+    const index = Math.min(phase.index, sections.length - 1);
+    const section = sections[index];
+    const sameGroupSections = sections.filter((s) => s.group === section.group);
     const groupIndex = sameGroupSections.findIndex((s) => s.id === section.id);
 
     return (
       <DetailSectionStep
         section={section}
         sectionIndex={index}
-        totalSections={QUIZ_SECTIONS.length}
+        totalSections={sections.length}
         groupIndex={groupIndex}
         groupTotal={sameGroupSections.length}
         answers={answers}
+        recommendedStyle={recommendedStyle}
+        budget={budget}
         onChange={updateAnswer}
         onNext={() => {
-          if (index < QUIZ_SECTIONS.length - 1) {
+          if (hasLot && lastSiteIndex >= 0 && index === lastSiteIndex) {
+            setPhase("site-talk");
+          } else if (index < sections.length - 1) {
             setPhase({ type: "detail", index: index + 1 });
           } else {
             setPhase("summary");
@@ -255,7 +309,9 @@ export default function QuizWizard() {
         }}
         onBack={() => {
           if (index === 0) {
-            setPhase("budget");
+            setPhase("lot-status");
+          } else if (hasLot && firstNonSite > 0 && index === firstNonSite) {
+            setPhase("site-talk");
           } else {
             setPhase({ type: "detail", index: index - 1 });
           }
@@ -267,6 +323,7 @@ export default function QuizWizard() {
   if (phase === "summary") {
     return (
       <SummaryPage
+        sections={sections}
         recommendedStyle={recommendedStyle}
         nonNegotiables={nonNegotiables}
         budget={budget}

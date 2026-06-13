@@ -1,21 +1,7 @@
 "use client";
 
 import { ArchitecturalStyle } from "../../types/quiz";
-
-const STYLE_INFO: Record<ArchitecturalStyle, { tagline: string; traits: string[] }> = {
-  Federal: {
-    tagline: "Refined, elegant, and quietly sophisticated.",
-    traits: ["Elliptical fanlights", "Delicate Adam-style moldings", "Slender proportions", "Pale, refined color palettes"],
-  },
-  Georgian: {
-    tagline: "Formal, symmetrical, and timelessly traditional.",
-    traits: ["Classic brick facade", "Balanced symmetry", "Bold keystones", "Paired chimneys"],
-  },
-  "Greek Revival": {
-    tagline: "Grand, columned, and classically imposing.",
-    traits: ["Full columned portico", "Wide pediment", "Bold entablature", "Monumental scale"],
-  },
-};
+import { STYLE_PROFILES } from "../../data/styleProfiles";
 
 interface Props {
   style: ArchitecturalStyle;
@@ -23,7 +9,8 @@ interface Props {
 }
 
 export default function StyleResultBadge({ style, compact }: Props) {
-  const info = STYLE_INFO[style];
+  const profile = STYLE_PROFILES[style];
+  const info = { tagline: profile.tagline, traits: profile.keyFeatures.slice(0, 4).map((f) => f.title) };
 
   if (compact) {
     return (

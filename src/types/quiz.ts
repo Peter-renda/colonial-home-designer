@@ -1,4 +1,4 @@
-export type QuestionType = "select" | "multiselect" | "text" | "file";
+export type QuestionType = "select" | "multiselect" | "text" | "file" | "dimensions";
 
 export type ArchitecturalStyle = "Federal" | "Georgian" | "Greek Revival";
 

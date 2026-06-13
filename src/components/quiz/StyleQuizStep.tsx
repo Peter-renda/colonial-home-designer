@@ -2,118 +2,60 @@
 
 import { useState } from "react";
 import { ArchitecturalStyle, StyleScores } from "../../types/quiz";
+import StyleHouseCard from "./StyleHouseCard";
 
-interface StyleQuestion {
-  question: string;
-  options: { label: string; description: string; style: ArchitecturalStyle }[];
+/**
+ * Picture-based style finder. The buyer is shown a gallery of colonial homes
+ * and simply taps the ones they're drawn to. We tally the styles behind their
+ * favorites to recommend a style — no jargon required.
+ */
+
+interface GalleryHouse {
+  id: string;
+  style: ArchitecturalStyle;
+  palette: keyof typeof PALETTE_KEYS;
 }
 
-const STYLE_QUESTIONS: StyleQuestion[] = [
-  {
-    question: "How do you want guests to feel when they approach your home?",
-    options: [
-      {
-        label: "Refined elegance",
-        description: "Understated, sophisticated, and quietly impressive",
-        style: "Federal",
-      },
-      {
-        label: "Classic formality",
-        description: "Proper, symmetrical, and timelessly traditional",
-        style: "Georgian",
-      },
-      {
-        label: "Grand presence",
-        description: "Dramatic, imposing, and inspired by ancient temples",
-        style: "Greek Revival",
-      },
-    ],
-  },
-  {
-    question: "Which exterior features draw you most?",
-    options: [
-      {
-        label: "Elliptical fanlights & delicate moldings",
-        description: "Graceful Adam-style details and slender proportions",
-        style: "Federal",
-      },
-      {
-        label: "Keystones & paired chimneys",
-        description: "Bold brick facades with symmetrical, formal composition",
-        style: "Georgian",
-      },
-      {
-        label: "Columned portico & wide pediment",
-        description: "Full columns across the front with a classical frieze",
-        style: "Greek Revival",
-      },
-    ],
-  },
-  {
-    question: "How would you describe your ideal interior aesthetic?",
-    options: [
-      {
-        label: "Light & airy with plasterwork accents",
-        description: "Oval rooms, delicate cornices, and pale color palettes",
-        style: "Federal",
-      },
-      {
-        label: "Rich woodwork & formal rooms",
-        description: "Mahogany paneling, traditional symmetry, and bold fireplaces",
-        style: "Georgian",
-      },
-      {
-        label: "Columned halls & classical proportions",
-        description: "Bold friezes, wide doorways, and monumental scale",
-        style: "Greek Revival",
-      },
-    ],
-  },
-  {
-    question: "Choose your ideal front door treatment:",
-    options: [
-      {
-        label: "Slender sidelights with an elliptical fanlight",
-        description: "Graceful, balanced, and quietly distinctive",
-        style: "Federal",
-      },
-      {
-        label: "Formal paneled door flanked by pilasters",
-        description: "Classical columns with a broken pediment above",
-        style: "Georgian",
-      },
-      {
-        label: "Massive door under a broad entablature",
-        description: "Tall columns on either side, pediment crowning the entry",
-        style: "Greek Revival",
-      },
-    ],
-  },
-  {
-    question: "Which exterior color palette resonates most?",
-    options: [
-      {
-        label: "Soft whites & warm creams",
-        description: "Pale, refined tones with subtle contrast",
-        style: "Federal",
-      },
-      {
-        label: "Warm brick with crisp white trim",
-        description: "Classic American colonial warmth",
-        style: "Georgian",
-      },
-      {
-        label: "Bold white with strong shadow lines",
-        description: "Striking contrast that emphasizes monumental form",
-        style: "Greek Revival",
-      },
-    ],
-  },
+// just a typing helper so palette keys stay in sync with StyleHouseCard
+const PALETTE_KEYS = { brick: 1, white: 1, cream: 1 } as const;
+
+// Interleaved so styles aren't visually grouped.
+const GALLERY: GalleryHouse[] = [
+  { id: "g1", style: "Georgian", palette: "brick" },
+  { id: "f1", style: "Federal", palette: "white" },
+  { id: "k1", style: "Greek Revival", palette: "white" },
+  { id: "f2", style: "Federal", palette: "cream" },
+  { id: "k2", style: "Greek Revival", palette: "cream" },
+  { id: "g2", style: "Georgian", palette: "white" },
 ];
 
-function computeRecommendation(scores: StyleScores): ArchitecturalStyle {
-  const entries = Object.entries(scores) as [ArchitecturalStyle, number][];
-  return entries.reduce((best, curr) => (curr[1] > best[1] ? curr : best))[0];
+function computeRecommendation(
+  selectedIds: string[]
+): { style: ArchitecturalStyle; scores: StyleScores } {
+  const scores: StyleScores = { Federal: 0, Georgian: 0, "Greek Revival": 0 };
+  const firstSeen: Record<ArchitecturalStyle, number> = {
+    Federal: Infinity,
+    Georgian: Infinity,
+    "Greek Revival": Infinity,
+  };
+  selectedIds.forEach((id, order) => {
+    const house = GALLERY.find((h) => h.id === id);
+    if (!house) return;
+    scores[house.style]++;
+    firstSeen[house.style] = Math.min(firstSeen[house.style], order);
+  });
+
+  const styles = Object.keys(scores) as ArchitecturalStyle[];
+  let best = styles[0];
+  for (const s of styles) {
+    if (
+      scores[s] > scores[best] ||
+      (scores[s] === scores[best] && firstSeen[s] < firstSeen[best])
+    ) {
+      best = s;
+    }
+  }
+  return { style: best, scores };
 }
 
 interface Props {
@@ -122,80 +64,89 @@ interface Props {
 }
 
 export default function StyleQuizStep({ onComplete, onBack }: Props) {
-  const [answers, setAnswers] = useState<Record<number, ArchitecturalStyle>>({});
-  const currentIndex = Object.keys(answers).length;
-  const isComplete = currentIndex >= STYLE_QUESTIONS.length;
+  const [selected, setSelected] = useState<string[]>([]);
 
-  function selectOption(style: ArchitecturalStyle) {
-    const next = { ...answers, [currentIndex]: style };
-    setAnswers(next);
-
-    if (currentIndex === STYLE_QUESTIONS.length - 1) {
-      const scores: StyleScores = { Federal: 0, Georgian: 0, "Greek Revival": 0 };
-      Object.values(next).forEach((s) => { scores[s]++; });
-      setTimeout(() => onComplete(computeRecommendation(scores), scores), 300);
-    }
-  }
-
-  function goBack() {
-    if (currentIndex === 0) {
-      onBack();
-    } else {
-      const prev = { ...answers };
-      delete prev[currentIndex - 1];
-      setAnswers(prev);
-    }
-  }
-
-  if (isComplete) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <p className="text-stone-500">Analyzing your style...</p>
-      </div>
+  function toggle(id: string) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }
 
-  const q = STYLE_QUESTIONS[currentIndex];
+  function finish() {
+    if (selected.length === 0) return;
+    const { style, scores } = computeRecommendation(selected);
+    onComplete(style, scores);
+  }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-2xl">
-          <div className="mb-10">
-            <p className="text-xs uppercase tracking-[0.2em] text-stone-400 mb-2">
-              Style · {currentIndex + 1} of {STYLE_QUESTIONS.length}
-            </p>
-            <div className="h-1 bg-stone-200 rounded-full">
-              <div
-                className="h-1 bg-stone-700 rounded-full transition-all duration-300"
-                style={{ width: `${((currentIndex) / STYLE_QUESTIONS.length) * 100}%` }}
-              />
-            </div>
-          </div>
+    <div className="min-h-screen bg-stone-50">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <p className="text-xs uppercase tracking-[0.2em] text-stone-400 mb-2">Find your style</p>
+        <h2 className="text-2xl sm:text-3xl font-light text-stone-800 mb-3">
+          Which of these homes draws you in?
+        </h2>
+        <p className="text-stone-400 text-sm mb-8 max-w-xl">
+          Tap every house you find yourself drawn to — pick as many as you like. We&rsquo;ll match
+          your favorites to an architectural style.
+        </p>
 
-          <h2 className="text-2xl sm:text-3xl font-light text-stone-800 mb-8">{q.question}</h2>
-
-          <div className="space-y-3">
-            {q.options.map((opt) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+          {GALLERY.map((house) => {
+            const active = selected.includes(house.id);
+            return (
               <button
-                key={opt.style}
-                onClick={() => selectOption(opt.style)}
-                className="w-full text-left border border-stone-200 bg-white hover:border-stone-700 hover:shadow-sm transition-all p-5 group"
+                key={house.id}
+                onClick={() => toggle(house.id)}
+                className={`group relative text-left border-2 bg-white overflow-hidden transition-all ${
+                  active
+                    ? "border-stone-800 shadow-md"
+                    : "border-stone-200 hover:border-stone-400 hover:shadow-sm"
+                }`}
               >
-                <p className="font-medium text-stone-800 mb-1 group-hover:text-stone-900">
-                  {opt.label}
-                </p>
-                <p className="text-sm text-stone-400">{opt.description}</p>
+                <StyleHouseCard style={house.style} palette={house.palette} className="w-full h-auto block" />
+                {/* selection check */}
+                <div
+                  className={`absolute top-3 right-3 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
+                    active ? "border-stone-800 bg-stone-800" : "border-stone-300 bg-white/80"
+                  }`}
+                >
+                  {active && (
+                    <svg className="w-4 h-4 text-white" viewBox="0 0 12 12" fill="none">
+                      <path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <div className="px-4 py-3 border-t border-stone-100">
+                  <p className="text-xs uppercase tracking-[0.15em] text-stone-400 group-hover:text-stone-600 transition-colors">
+                    {active ? "Liked ✓" : "Tap if you like it"}
+                  </p>
+                </div>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
+        <div className="flex items-center justify-between">
           <button
-            onClick={goBack}
-            className="mt-8 text-sm text-stone-400 hover:text-stone-600 transition-colors"
+            onClick={onBack}
+            className="text-sm text-stone-400 hover:text-stone-600 transition-colors"
           >
             ← Back
           </button>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-stone-400">
+              {selected.length === 0
+                ? "Select at least one"
+                : `${selected.length} selected`}
+            </span>
+            <button
+              onClick={finish}
+              disabled={selected.length === 0}
+              className="bg-stone-800 text-white px-8 py-3 text-sm uppercase tracking-[0.15em] hover:bg-stone-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              See my style →
+            </button>
+          </div>
         </div>
       </div>
     </div>
