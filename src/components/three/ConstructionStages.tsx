@@ -3,13 +3,14 @@
 import { Suspense, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useLoader } from "@react-three/fiber";
-import { HouseParams, SiteParams } from "../../lib/houseParams";
+import { FoundationView, FramingView, HouseParams, SiteParams } from "../../lib/houseParams";
 
 /**
  * Pre-house construction stages for the live 3D panel:
  *  - SiteModel       — the raw lot: terrain, boundary, staked footprint
- *  - FoundationModel — step-by-step foundation build (slab/crawl/basement)
- *  - FramingModel    — lumber skeleton only; studs track ceiling heights
+ *  - FoundationModel — selection-driven foundation (slab/crawl/basement); each
+ *                      element appears as the user picks it, on the real site
+ *  - FramingModel    — lumber skeleton + chosen sheathing; studs track heights
  *
  * Same coordinate system as HouseModel: front faces +z, y up, units feet.
  */
@@ -17,16 +18,16 @@ import { HouseParams, SiteParams } from "../../lib/houseParams";
 const DIRT = "#8a6f52";
 const DIRT_DARK = "#94795b";
 const CONCRETE = "#c9c4b8";
-const CONCRETE_WET = "#b7b2a6";
 const CMU = "#a6a094";
 const STONE = "#b3a98f";
 const FOAM_PINK = "#e0938f";
 const FOAM_BLUE = "#7fa8c9";
-const FORM_WOOD = "#a87f4f";
 const LUMBER = "#d9b886";
 const LUMBER_DARK = "#c5a06b";
 const CHALK = "#f3f1e8";
 const GRASS = "#b9c4a0";
+const OSB_BROWN = "#b78a55";
+const ZIP_GREEN = "#3f7d4f";
 
 // ─── shared helpers ─────────────────────────────────────────────
 
@@ -273,33 +274,14 @@ export function SiteModel({ p }: { p: HouseParams }) {
   );
 }
 
-// ─── FOUNDATION MODEL — staged build ────────────────────────────
+// ─── FOUNDATION MODEL — selection-driven ────────────────────────
 
-export const FOUNDATION_STEP_COUNT = 5;
-
-export function foundationSteps(type: HouseParams["foundationType"]): string[] {
-  if (type === "basement")
-    return ["Site staked", "Excavation", "Footings", "Pour walls", "Slab + backfill"];
-  if (type === "crawlspace")
-    return ["Site staked", "Excavation", "Footings", "Stem walls", "Backfill + vents"];
-  return ["Site staked", "Excavation", "Footings", "Stone + forms", "Pour slab"];
-}
-
-interface PitSpec {
-  depth: number;
-  margin: number;
-}
-
-function pitSpec(p: HouseParams): PitSpec {
-  if (p.foundationType === "basement") return { depth: 8.5, margin: 6 };
-  if (p.foundationType === "crawlspace") return { depth: 2.0, margin: 4 };
-  return { depth: 1.2, margin: 3 };
-}
+/** Basement excavation depth, ft. */
+const BASEMENT_DEPTH = 8.5;
 
 /** Flat ground plane with an open excavation pit (hole + dirt walls + floor). */
-function GroundWithPit({ p, open }: { p: HouseParams; open: boolean }) {
+function GroundWithPit({ p, depth, margin }: { p: HouseParams; depth: number; margin: number }) {
   const G = 170;
-  const { depth, margin } = pitSpec(p);
   const pw = p.widthFt + margin * 2;
   const pd = p.depthFt + margin * 2;
 
@@ -319,15 +301,6 @@ function GroundWithPit({ p, open }: { p: HouseParams; open: boolean }) {
     shape.holes.push(hole);
     return new THREE.ShapeGeometry(shape);
   }, [pw, pd]);
-
-  if (!open) {
-    return (
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
-        <planeGeometry args={[G * 2, G * 2]} />
-        <meshStandardMaterial color={GRASS} />
-      </mesh>
-    );
-  }
 
   return (
     <group>
@@ -355,37 +328,6 @@ function GroundWithPit({ p, open }: { p: HouseParams; open: boolean }) {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -depth, 0]} receiveShadow>
         <planeGeometry args={[pw, pd]} />
         <meshStandardMaterial color={DIRT_DARK} />
-      </mesh>
-      {/* spoil pile waiting to become backfill */}
-      <mesh position={[pw / 2 + 14, 0, -8]} scale={[1, 0.35, 1]} castShadow>
-        <sphereGeometry args={[Math.min(7 + depth, 12), 16, 12]} />
-        <meshStandardMaterial color={DIRT} />
-      </mesh>
-    </group>
-  );
-}
-
-/** Concrete footing strips around the footprint perimeter. */
-function Footings({ p, y }: { p: HouseParams; y: number }) {
-  const w = p.widthFt;
-  const d = p.depthFt;
-  return (
-    <group position={[0, y, 0]}>
-      <mesh position={[0, 0, d / 2]} castShadow>
-        <boxGeometry args={[w + 2, 0.8, 2]} />
-        <meshStandardMaterial color={CONCRETE_WET} />
-      </mesh>
-      <mesh position={[0, 0, -d / 2]} castShadow>
-        <boxGeometry args={[w + 2, 0.8, 2]} />
-        <meshStandardMaterial color={CONCRETE_WET} />
-      </mesh>
-      <mesh position={[-w / 2, 0, 0]} castShadow>
-        <boxGeometry args={[2, 0.8, d - 2]} />
-        <meshStandardMaterial color={CONCRETE_WET} />
-      </mesh>
-      <mesh position={[w / 2, 0, 0]} castShadow>
-        <boxGeometry args={[2, 0.8, d - 2]} />
-        <meshStandardMaterial color={CONCRETE_WET} />
       </mesh>
     </group>
   );
@@ -431,102 +373,137 @@ function WallRing({
   );
 }
 
-export function FoundationModel({ p, step }: { p: HouseParams; step: number }) {
+/**
+ * Selection-driven foundation. Renders on the real site (sloped/topo terrain
+ * from the site step) and reveals one element at a time as the user chooses:
+ *   • nothing chosen → just the staked site
+ *   • foundation type → slab / crawlspace / basement
+ *   • slab depth & stone base → slab thickness over an exposed stone bed
+ *   • side insulation → perimeter rigid foam
+ *   • bottom insulation → rigid foam under the slab
+ */
+export function FoundationModel({ p, sel }: { p: HouseParams; sel: FoundationView }) {
   const w = p.widthFt;
   const d = p.depthFt;
-  const { depth } = pitSpec(p);
   const fd = p.foundationDetail;
   const type = p.foundationType;
-
-  const pitOpen = step >= 1 && step < 4;
   const stoneH = fd.stoneBaseIn / 12;
   const slabH = fd.slabDepthIn / 12;
+  const terrainSize = Math.min(p.site.lotSideFt + 50, 180);
 
+  // Nothing chosen yet — show only the site, staked and graded.
+  if (!sel.typeChosen) {
+    return (
+      <group>
+        <Terrain p={p} sizeFt={terrainSize} />
+        <StakedFootprint p={p} />
+      </group>
+    );
+  }
+
+  if (type === "basement") {
+    const wallBottom = -BASEMENT_DEPTH + 0.8;
+    return (
+      <group>
+        {/* a basement needs a hole to see into — shown statically, not staged */}
+        <GroundWithPit p={p} depth={BASEMENT_DEPTH} margin={6} />
+        {/* full-height concrete walls */}
+        <WallRing p={p} bottom={wallBottom} top={1.5} thickness={0.7} color={CONCRETE} />
+        {/* waterproofing coat below grade */}
+        <WallRing
+          p={{ ...p, widthFt: w + 0.14, depthFt: d + 0.14 }}
+          bottom={wallBottom}
+          top={-0.2}
+          thickness={0.1}
+          color="#3a3632"
+        />
+        {/* basement floor slab */}
+        <mesh position={[0, wallBottom + slabH / 2, 0]} receiveShadow>
+          <boxGeometry args={[w - 1.4, slabH, d - 1.4]} />
+          <meshStandardMaterial color={CONCRETE} />
+        </mesh>
+        {/* sill plate, ready for framing */}
+        <WallRing p={p} bottom={1.5} top={1.63} thickness={0.7} color={LUMBER_DARK} />
+        {/* perimeter rigid-foam insulation on the wall face */}
+        {sel.sideInsulation && (
+          <WallRing
+            p={{ ...p, widthFt: w + 0.32, depthFt: d + 0.32 }}
+            bottom={wallBottom + 0.1}
+            top={1.4}
+            thickness={0.18}
+            color={FOAM_PINK}
+          />
+        )}
+      </group>
+    );
+  }
+
+  if (type === "crawlspace") {
+    const top = fd.crawlHeightFt;
+    return (
+      <group>
+        <Terrain p={p} sizeFt={terrainSize} />
+        {/* block stem walls raising the floor above grade */}
+        <WallRing p={p} bottom={-1.2} top={top} thickness={0.7} color={CMU} />
+        {/* foundation vents on the front wall */}
+        {[-w / 3, 0, w / 3].map((x) => (
+          <mesh key={x} position={[x, top - 0.55, d / 2 + 0.04]}>
+            <boxGeometry args={[1.3, 0.65, 0.08]} />
+            <meshStandardMaterial color="#3f3b35" />
+          </mesh>
+        ))}
+        {/* sill plate, ready for framing */}
+        <WallRing p={p} bottom={top} top={top + 0.13} thickness={0.7} color={LUMBER_DARK} />
+        {/* perimeter rigid-foam insulation */}
+        {sel.sideInsulation && (
+          <WallRing
+            p={{ ...p, widthFt: w + 0.32, depthFt: d + 0.32 }}
+            bottom={-0.2}
+            top={top}
+            thickness={0.18}
+            color={FOAM_PINK}
+          />
+        )}
+      </group>
+    );
+  }
+
+  // ── slab on grade ──
+  // Poured over the front ~60% so the compacted stone bed (and under-slab foam)
+  // stay exposed at the rear — a "partially poured" cutaway.
+  const slabBottom = stoneH + (sel.bottomInsulation ? 0.16 : 0);
+  const slabTop = slabBottom + slabH;
+  const slabCoverD = d * 0.6;
+  const slabCenterZ = d / 2 - slabCoverD / 2; // toward the +z front
   return (
     <group>
-      <GroundWithPit p={p} open={pitOpen} />
-      {step === 0 && <StakedFootprint p={p} />}
-      {step === 1 && <StakedFootprint p={p} stakes={false} />}
-
-      {/* footings on the pit floor */}
-      {step >= 2 && <Footings p={p} y={-depth + 0.4} />}
-
-      {/* ── slab on grade ── */}
-      {type === "slab" && step >= 3 && (
-        <group>
-          {/* compacted stone base */}
-          <mesh position={[0, -0.6 + stoneH / 2, 0]}>
-            <boxGeometry args={[w, stoneH, d]} />
-            <meshStandardMaterial color={STONE} />
-          </mesh>
-          {/* under-slab rigid foam */}
-          {fd.bottomInsulation && (
-            <mesh position={[0, -0.6 + stoneH + 0.08, 0]}>
-              <boxGeometry args={[w, 0.16, d]} />
-              <meshStandardMaterial color={FOAM_BLUE} />
-            </mesh>
-          )}
-          {/* form boards */}
-          {step === 3 && (
-            <WallRing p={{ ...p, widthFt: w + 0.4, depthFt: d + 0.4 }} bottom={-0.4} top={0.7} thickness={0.16} color={FORM_WOOD} />
-          )}
-        </group>
+      <Terrain p={p} sizeFt={terrainSize} />
+      {/* compacted stone base — full footprint, left exposed at the rear */}
+      <mesh position={[0, stoneH / 2, 0]} receiveShadow>
+        <boxGeometry args={[w, stoneH, d]} />
+        <meshStandardMaterial color={STONE} />
+      </mesh>
+      {/* under-slab rigid foam — also exposed where the slab isn't poured yet */}
+      {sel.bottomInsulation && (
+        <mesh position={[0, stoneH + 0.08, 0]}>
+          <boxGeometry args={[w, 0.16, d]} />
+          <meshStandardMaterial color={FOAM_BLUE} />
+        </mesh>
       )}
-      {type === "slab" && step >= 4 && (
-        <group>
-          {/* the cured slab */}
-          <mesh position={[0, 0.55 - slabH / 2, 0]} receiveShadow castShadow>
-            <boxGeometry args={[w, slabH, d]} />
-            <meshStandardMaterial color={CONCRETE} />
-          </mesh>
-          {/* slab-edge insulation */}
-          {fd.sideInsulation && (
-            <WallRing p={{ ...p, widthFt: w + 0.5, depthFt: d + 0.5 }} bottom={-0.55} top={0.55} thickness={0.2} color={FOAM_PINK} />
-          )}
-        </group>
-      )}
-
-      {/* ── crawlspace ── */}
-      {type === "crawlspace" && step >= 3 && (
-        <WallRing p={p} bottom={-depth + 0.8} top={fd.crawlHeightFt} thickness={0.7} color={CMU} />
-      )}
-      {type === "crawlspace" && step >= 4 && (
-        <group>
-          {/* crawlspace vents on the front wall */}
-          {[-w / 3, 0, w / 3].map((x) => (
-            <mesh key={x} position={[x, fd.crawlHeightFt - 0.55, d / 2 + 0.04]}>
-              <boxGeometry args={[1.3, 0.65, 0.08]} />
-              <meshStandardMaterial color="#3f3b35" />
-            </mesh>
-          ))}
-          {/* sill plate, ready for framing */}
-          <WallRing p={p} bottom={fd.crawlHeightFt} top={fd.crawlHeightFt + 0.13} thickness={0.7} color={LUMBER_DARK} />
-        </group>
-      )}
-
-      {/* ── basement ── */}
-      {type === "basement" && step >= 3 && (
-        <group>
-          <WallRing p={p} bottom={-depth + 0.8} top={1.5} thickness={0.7} color={CONCRETE} />
-          {/* waterproofing coat below grade */}
-          <WallRing
-            p={{ ...p, widthFt: w + 0.14, depthFt: d + 0.14 }}
-            bottom={-depth + 0.8}
-            top={-0.2}
-            thickness={0.1}
-            color="#3a3632"
-          />
-        </group>
-      )}
-      {type === "basement" && step >= 4 && (
-        <group>
-          {/* basement floor slab */}
-          <mesh position={[0, -depth + 0.8 + slabH / 2, 0]}>
-            <boxGeometry args={[w - 1.4, slabH, d - 1.4]} />
-            <meshStandardMaterial color={CONCRETE} />
-          </mesh>
-          <WallRing p={p} bottom={1.5} top={1.63} thickness={0.7} color={LUMBER_DARK} />
-        </group>
+      {/* the slab, poured over the front portion */}
+      <mesh position={[0, (slabBottom + slabTop) / 2, slabCenterZ]} receiveShadow castShadow>
+        <boxGeometry args={[w, slabH, slabCoverD]} />
+        <meshStandardMaterial color={CONCRETE} />
+      </mesh>
+      {/* slab-edge / perimeter rigid-foam insulation */}
+      {sel.sideInsulation && (
+        <WallRing
+          p={{ ...p, widthFt: w + 0.4, depthFt: d + 0.4 }}
+          bottom={-0.05}
+          top={slabTop}
+          thickness={0.2}
+          color={FOAM_PINK}
+        />
       )}
     </group>
   );
@@ -586,7 +563,30 @@ function gridPositions(span: number, spacing: number): number[] {
   return out;
 }
 
-export function FramingModel({ p }: { p: HouseParams }) {
+/** 4×8 sheathing panels tiled across a wall span and height (seams left open). */
+function panelTiles(
+  span: number,
+  yBottom: number,
+  yTop: number
+): { along: number; cy: number; aLen: number; vLen: number }[] {
+  const PANEL_W = 4;
+  const PANEL_H = 8;
+  const SEAM = 0.08;
+  const cols = Math.max(1, Math.round(span / PANEL_W));
+  const colW = span / cols;
+  const rows = Math.max(1, Math.round((yTop - yBottom) / PANEL_H));
+  const rowH = (yTop - yBottom) / rows;
+  const out: { along: number; cy: number; aLen: number; vLen: number }[] = [];
+  for (let i = 0; i < cols; i++) {
+    const along = -span / 2 + colW * (i + 0.5);
+    for (let j = 0; j < rows; j++) {
+      out.push({ along, cy: yBottom + rowH * (j + 0.5), aLen: colW - SEAM, vLen: rowH - SEAM });
+    }
+  }
+  return out;
+}
+
+export function FramingModel({ p, framing }: { p: HouseParams; framing?: FramingView }) {
   const w = p.widthFt;
   const d = p.depthFt;
   const studD = p.framingDetail.studDepthFt;
@@ -675,6 +675,23 @@ export function FramingModel({ p }: { p: HouseParams }) {
     return { studs, plates, joists, rafters };
   }, [w, d, studD, onSlab, base1, base2, wall2Top, ridgeY, pitch, p.firstFloorFt, p.secondFloorFt]);
 
+  // ── exterior sheathing: 4×8 panels on the rear + left walls, so the chosen
+  //    OSB (brown) or Zip (green) reads "beyond" the still-exposed framing ──
+  const showSheathing = framing?.sheathingChosen ?? false;
+  const sheathColor = p.framingDetail.sheathing === "zip" ? ZIP_GREEN : OSB_BROWN;
+  const sheathing = useMemo(() => {
+    if (!showSheathing) return [] as Piece[];
+    const t = 0.05;
+    const out: Piece[] = [];
+    for (const tile of panelTiles(w, fnd, wall2Top)) {
+      out.push({ pos: [tile.along, tile.cy, -d / 2 - t / 2], size: [tile.aLen, tile.vLen, t] });
+    }
+    for (const tile of panelTiles(d, fnd, wall2Top)) {
+      out.push({ pos: [-w / 2 - t / 2, tile.cy, tile.along], size: [t, tile.vLen, tile.aLen] });
+    }
+    return out;
+  }, [showSheathing, w, d, fnd, wall2Top]);
+
   return (
     <group>
       {/* graded site */}
@@ -715,6 +732,7 @@ export function FramingModel({ p }: { p: HouseParams }) {
       <LumberInstances pieces={plates} color={LUMBER_DARK} />
       <LumberInstances pieces={joists} color="#cfa874" />
       <LumberInstances pieces={rafters} color="#d3ae7e" />
+      {sheathing.length > 0 && <LumberInstances pieces={sheathing} color={sheathColor} />}
 
       {/* ridge board */}
       <mesh position={[0, ridgeY + 0.55, 0]} castShadow>

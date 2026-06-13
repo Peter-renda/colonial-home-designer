@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { QuizAnswers, QuizGroup } from "../../types/quiz";
-import { BuildStage, paramsFromAnswers } from "../../lib/houseParams";
-import { foundationSteps, FOUNDATION_STEP_COUNT } from "../three/ConstructionStages";
+import {
+  BuildStage,
+  paramsFromAnswers,
+  foundationViewFromAnswers,
+  framingViewFromAnswers,
+} from "../../lib/houseParams";
 import {
   StandaloneFrontElevationSideGable,
   StandaloneAssembly,
@@ -72,27 +76,10 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
   const params = useMemo(() => paramsFromAnswers(answers), [answers]);
   const stage = stageForSection(sectionId);
 
-  // ── foundation build animation ──
-  const [buildStep, setBuildStep] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const lastStep = FOUNDATION_STEP_COUNT - 1;
-  const playing = stage === "foundation" && autoPlay && buildStep < lastStep;
-
-  // restart the sequence whenever the foundation type changes
-  useEffect(() => {
-    if (stage === "foundation") {
-      setBuildStep(0);
-      setAutoPlay(true);
-    }
-  }, [stage, params.foundationType]);
-
-  useEffect(() => {
-    if (!playing) return;
-    const t = setTimeout(() => setBuildStep((s) => Math.min(s + 1, lastStep)), 1500);
-    return () => clearTimeout(t);
-  }, [playing, buildStep, lastStep]);
-
-  const stepLabels = foundationSteps(params.foundationType);
+  // foundation/framing reveal state — drives which elements appear as the
+  // user makes selections (the model builds itself up, not on a timer)
+  const foundationView = useMemo(() => foundationViewFromAnswers(answers), [answers]);
+  const framingView = useMemo(() => framingViewFromAnswers(answers), [answers]);
 
   const specLine = [
     params.facade === "brick" ? "Brick" : params.facade === "cedar" ? "Cedar lap" : "Hardiplank",
@@ -116,11 +103,14 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
     .filter(Boolean)
     .join(" · ");
 
+  const foundationChosen = ans(answers, "foundationType") !== "";
   const heading =
     stage === "site"
       ? "Your lot — live 3D site model"
       : stage === "foundation"
-        ? "Your foundation — watch it being built"
+        ? foundationChosen
+          ? "Your foundation — built from your selections"
+          : "Your lot — choose a foundation to begin"
         : stage === "framing"
           ? "Your framing — live 3D model"
           : "Your home — live 3D model";
@@ -129,45 +119,22 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
     <div className="space-y-4">
       <p className="text-xs uppercase tracking-[0.15em] text-stone-400">{heading}</p>
       <div className="bg-[#e9ece3] border border-stone-200 w-full aspect-[4/3] overflow-hidden">
-        <HouseViewer params={params} stage={stage} buildStep={buildStep} />
+        <HouseViewer
+          params={params}
+          stage={stage}
+          foundation={foundationView}
+          framing={framingView}
+        />
       </div>
 
       {stage === "foundation" && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {stepLabels.map((label, i) => (
-              <button
-                key={label}
-                onClick={() => {
-                  setAutoPlay(false);
-                  setBuildStep(i);
-                }}
-                className={`px-2.5 py-1.5 text-[10px] uppercase tracking-wider border transition-colors ${
-                  i === buildStep
-                    ? "border-stone-700 bg-stone-800 text-white"
-                    : i < buildStep
-                      ? "border-stone-300 bg-stone-100 text-stone-500"
-                      : "border-stone-200 bg-white text-stone-400 hover:border-stone-400"
-                }`}
-              >
-                {i + 1}. {label}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setBuildStep(0);
-                setAutoPlay(true);
-              }}
-              className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-stone-400 hover:text-stone-600 transition-colors"
-              title="Replay the build"
-            >
-              ↻ Replay
-            </button>
-          </div>
-          <p className="text-xs text-stone-400 leading-relaxed">
-            {foundationStepCaption(params.foundationType, buildStep)}
-          </p>
-        </div>
+        <p className="text-xs text-stone-400 leading-relaxed">
+          {foundationCaption(answers, params)}
+          <span className="block mt-1 text-stone-300">
+            Drag to orbit · scroll to zoom · each foundation choice is added to the model as you
+            make it.
+          </span>
+        </p>
       )}
 
       {stage === "site" && <SiteAnalysisReport answers={answers} />}
@@ -177,6 +144,14 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
           {params.framingDetail.studLabel} studs at 16&Prime; o.c. · first floor{" "}
           {params.firstFloorFt}&prime;, second floor {params.secondFloorFt}&prime; — stud lengths
           update as you change ceiling heights.
+          {framingView.sheathingChosen && (
+            <>
+              {" "}
+              Walls are sheathed in{" "}
+              {params.framingDetail.sheathing === "zip" ? "green 7/16″ Zip System" : "brown 7/16″ OSB"}{" "}
+              panels.
+            </>
+          )}
           <span className="block mt-1 text-stone-300">
             Drag to orbit · scroll to zoom · the skeleton rebuilds as you make selections.
           </span>
@@ -195,31 +170,31 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
   );
 }
 
-function foundationStepCaption(type: string, step: number): string {
-  const captions: Record<string, string[]> = {
-    slab: [
-      "The pad is cleared, graded level, and the footprint is staked with chalk lines.",
-      "Topsoil is stripped and the slab area excavated; perimeter trenches go a little deeper for the thickened edge.",
-      "Concrete footings are poured around the perimeter to spread the building's weight into undisturbed soil.",
-      "Compacted stone goes down as a capillary break, rigid foam insulates under the slab, and form boards shape the pour.",
-      "Concrete is poured, screeded level, and cured — edge insulation wraps the slab where it meets outside air.",
-    ],
-    crawlspace: [
-      "The pad is cleared, graded level, and the footprint is staked with chalk lines.",
-      "A shallow excavation takes the footings below the frost line.",
-      "Concrete footings are poured around the perimeter to carry the stem walls.",
-      "Block stem walls are laid up course by course, raising the floor 2–3 feet above grade.",
-      "Soil is backfilled against the walls, vents ventilate the crawl, and the sill plate is bolted on — ready for floor framing.",
-    ],
-    basement: [
-      "The pad is cleared, graded level, and the footprint is staked with chalk lines.",
-      "The big dig — roughly 8 feet down, with extra working room around the perimeter.",
-      "Concrete footings are poured at the base of the excavation to carry the walls.",
-      "Full-height concrete walls are formed and poured, then coated with waterproofing below grade.",
-      "The basement slab is poured inside, soil is backfilled against the walls, and the sill plate is bolted on.",
-    ],
-  };
-  return (captions[type] ?? captions.slab)[step] ?? "";
+/** Plain-language caption describing the foundation as it's been selected. */
+function foundationCaption(answers: QuizAnswers, params: ReturnType<typeof paramsFromAnswers>): string {
+  const type = ans(answers, "foundationType");
+  if (type === "") {
+    return "This is your lot, graded and staked. Pick a foundation type and it appears here.";
+  }
+  const parts: string[] = [];
+  if (type === "Basement") {
+    parts.push("Full concrete basement walls on poured footings, with the floor slab inside.");
+  } else if (type === "Crawlspace") {
+    parts.push(
+      `Block stem walls raise the floor ${params.foundationDetail.crawlHeightFt}′ above grade, with foundation vents.`
+    );
+  } else {
+    parts.push(
+      `${params.foundationDetail.slabDepthIn}″ slab on a ${params.foundationDetail.stoneBaseIn}″ compacted stone bed — shown partially poured so the stone reads underneath.`
+    );
+  }
+  if (ans(answers, "foundationSideInsulation") === "Yes") {
+    parts.push("Rigid foam wraps the perimeter (side insulation).");
+  }
+  if (ans(answers, "foundationBottomInsulation").startsWith("Yes")) {
+    parts.push("Rigid foam runs under the slab (bottom insulation).");
+  }
+  return parts.join(" ");
 }
 
 // ─── SITE ANALYSIS — derived insights from the lot answers ──────
@@ -340,6 +315,8 @@ function LegacySketch({ group, sectionId, sketchKey, answers }: Props) {
     return <SitePlanSketch answers={answers} />;
   }
   if (group === "structural" || group === "systems") {
+    if (sectionId === "framing") return <FramingDetailSketch answers={answers} />;
+    if (sectionId === "insulation") return <InsulationDetailSketch answers={answers} />;
     return <StructuralSketch sectionId={sectionId} answers={answers} />;
   }
   if (group === "exterior") {
@@ -973,6 +950,361 @@ function StructuralSketch({ sectionId, answers }: { sectionId: string; answers: 
       </svg>
       <p className="text-xs text-stone-400 leading-relaxed">
         Cross-section updates as you change foundation, framing, insulation, and HVAC.
+      </p>
+    </div>
+  );
+}
+
+// ─── STRUCTURAL DETAILS — architect-style detail drawings ───────
+const DETAIL_OSB = "#b88a55";
+const DETAIL_ZIP = "#3f7d4f";
+const DETAIL_FOAM = "#e0938f";
+
+function sheathingColor(sheath: string): string {
+  if (sheath.includes("Zip")) return DETAIL_ZIP;
+  if (sheath.includes("OSB")) return DETAIL_OSB;
+  return "#d8cdb8";
+}
+
+/** Fiberglass-batt insulation fill: tinted block + squiggle — wall & attic. */
+function Batt({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  const lines: React.ReactNode[] = [];
+  for (let yy = y + 4; yy < y + h - 1; yy += 6) {
+    const pts: string[] = [];
+    let up = true;
+    for (let xx = x; xx <= x + w + 0.01; xx += 5) {
+      pts.push(`${xx.toFixed(1)},${(up ? yy - 1.8 : yy + 1.8).toFixed(1)}`);
+      up = !up;
+    }
+    lines.push(
+      <polyline key={yy} points={pts.join(" ")} fill="none" stroke="#cf8d87" strokeWidth="0.5" />
+    );
+  }
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill="#f4d8d4" />
+      {lines}
+    </g>
+  );
+}
+
+/**
+ * Horizontal "looking-down" plan cut through the exterior wall. Used on the
+ * framing page (to show the 4″/6″ wall) and on the insulation page (with
+ * cavities filled and an optional continuous exterior-foam layer).
+ */
+function WallPlanDetail({
+  wall,
+  sheath,
+  insulated,
+  exteriorFoam,
+}: {
+  wall: string;
+  sheath: string;
+  insulated: boolean;
+  exteriorFoam: boolean;
+}) {
+  const chosen = wall === "2x4" || wall === "2x6";
+  const studIn = wall === "2x6" ? 5.5 : 3.5;
+  const PX = 7;
+  const studPx = studIn * PX;
+  const y0 = 42;
+  const y1 = 132;
+  const h = y1 - y0;
+
+  let x = 38;
+  const claddingX = x;
+  const claddingW = 7;
+  x += claddingW;
+  const foamX = x;
+  const foamW = exteriorFoam ? 9 : 0;
+  x += foamW;
+  const sheathX = x;
+  const sheathW = 5;
+  x += sheathW;
+  const studX = x;
+  x += studPx;
+  const dryX = x;
+  const dryW = 4;
+  x += dryW;
+
+  const studYs = [y0 + 5, (y0 + y1) / 2 - 5.5, y1 - 16];
+  const caption = [
+    chosen ? `${wall} @ 16″ o.c.` : "2x4 / 2x6",
+    sheath || null,
+    exteriorFoam ? "+ ext. foam" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <svg viewBox="0 0 200 160" className="w-full h-auto">
+      <rect x="0" y="0" width="200" height="160" fill="#fafaf7" />
+      <text x={claddingX} y={y0 - 16} fontSize="6" fill="#9b9286">
+        exterior →
+      </text>
+      <text x={dryX + dryW} y={y0 - 16} fontSize="6" fill="#9b9286" textAnchor="end">
+        ← interior
+      </text>
+
+      {/* cladding */}
+      <rect x={claddingX} y={y0} width={claddingW} height={h} fill="#cdbfa6" stroke="#4a4543" strokeWidth="0.4" />
+      {/* continuous exterior rigid foam */}
+      {exteriorFoam && (
+        <rect x={foamX} y={y0} width={foamW} height={h} fill={DETAIL_FOAM} stroke="#4a4543" strokeWidth="0.4" />
+      )}
+      {/* sheathing */}
+      <rect x={sheathX} y={y0} width={sheathW} height={h} fill={sheathingColor(sheath)} stroke="#4a4543" strokeWidth="0.4" />
+      {/* stud cavity (filled with batt on the insulation page) */}
+      {insulated && <Batt x={studX} y={y0} w={studPx} h={h} />}
+      <rect x={studX} y={y0} width={studPx} height={h} fill="none" stroke="#4a4543" strokeWidth="0.4" />
+      {/* studs, cut */}
+      {chosen &&
+        studYs.map((sy) => (
+          <rect key={sy} x={studX} y={sy} width={studPx} height={11} fill="#d9b886" stroke="#4a4543" strokeWidth="0.4" />
+        ))}
+      {/* drywall */}
+      <rect x={dryX} y={y0} width={dryW} height={h} fill="#f0ece3" stroke="#4a4543" strokeWidth="0.4" />
+
+      {/* stud-depth dimension */}
+      <line x1={studX} y1={y0 - 9} x2={dryX} y2={y0 - 9} stroke="#7a7158" strokeWidth="0.4" />
+      <line x1={studX} y1={y0 - 12} x2={studX} y2={y0 - 6} stroke="#7a7158" strokeWidth="0.4" />
+      <line x1={dryX} y1={y0 - 12} x2={dryX} y2={y0 - 6} stroke="#7a7158" strokeWidth="0.4" />
+      <text x={(studX + dryX) / 2} y={y0 - 11} fontSize="6.5" fill="#4a4543" textAnchor="middle">
+        {chosen ? `${studIn}″` : "?"}
+      </text>
+
+      <text x="100" y="150" fontSize="7.5" fill="#7a7158" textAnchor="middle">
+        {caption}
+      </text>
+    </svg>
+  );
+}
+
+/** Panelized sheathing elevation: brown OSB or green Zip 4×8 sheets. */
+function SheathingPanelDetail({ sheath }: { sheath: string }) {
+  const isZip = sheath.includes("Zip");
+  const chosen = isZip || sheath.includes("OSB");
+  const color = sheathingColor(sheath);
+  const x0 = 20;
+  const y0 = 28;
+  const cols = 4;
+  const rows = 2;
+  const cw = 160 / cols;
+  const rh = 104 / rows;
+  const panels: React.ReactNode[] = [];
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      const px = x0 + c * cw;
+      const py = y0 + r * rh;
+      panels.push(
+        <g key={`${c}-${r}`}>
+          <rect x={px + 1} y={py + 1} width={cw - 2} height={rh - 2} fill={chosen ? color : "#e7e2d6"} stroke="#4a4543" strokeWidth="0.4" />
+          {isZip && <rect x={px + 1} y={py + 1} width={cw - 2} height="2.5" fill="#d8b13f" />}
+          {!isZip &&
+            chosen &&
+            Array.from({ length: 5 }).map((_, i) => (
+              <line key={i} x1={px + 3} y1={py + 8 + i * 8} x2={px + cw - 3} y2={py + 8 + i * 8} stroke="#9c6f3f" strokeWidth="0.3" />
+            ))}
+        </g>
+      );
+    }
+  }
+  return (
+    <svg viewBox="0 0 200 160" className="w-full h-auto">
+      <rect x="0" y="0" width="200" height="160" fill="#fafaf7" />
+      <text x="100" y="20" fontSize="6" fill="#9b9286" textAnchor="middle">
+        4′ × 8′ panels
+      </text>
+      {panels}
+      <text x="100" y="150" fontSize="7.5" fill="#7a7158" textAnchor="middle">
+        {chosen ? (isZip ? "7/16″ Zip System · taped seams" : "7/16″ OSB") : "select sheathing"}
+      </text>
+    </svg>
+  );
+}
+
+/** Floor framing detail: engineered I-joists or open-web floor trusses. */
+function FloorSystemDetail({ floorSystem }: { floorSystem: string }) {
+  const isIJoist = floorSystem === "I-joists";
+  const isTruss = floorSystem === "Engineered trusses";
+  return (
+    <svg viewBox="0 0 200 160" className="w-full h-auto">
+      <rect x="0" y="0" width="200" height="160" fill="#fafaf7" />
+      {/* subfloor */}
+      <rect x="18" y="34" width="164" height="9" fill="#cba36b" stroke="#4a4543" strokeWidth="0.5" />
+      <text x="100" y="29" fontSize="6" fill="#9b9286" textAnchor="middle">
+        ¾″ subfloor
+      </text>
+
+      {isIJoist &&
+        [40, 80, 120, 160].map((cx) => (
+          <g key={cx}>
+            <rect x={cx - 9} y="43" width="18" height="5" fill="#d9b886" stroke="#4a4543" strokeWidth="0.4" />
+            <rect x={cx - 1.5} y="48" width="3" height="62" fill="#b88a55" stroke="#4a4543" strokeWidth="0.3" />
+            <rect x={cx - 9} y="110" width="18" height="5" fill="#d9b886" stroke="#4a4543" strokeWidth="0.4" />
+          </g>
+        ))}
+
+      {isTruss && (
+        <g>
+          <rect x="18" y="48" width="164" height="5" fill="#d9b886" stroke="#4a4543" strokeWidth="0.4" />
+          <rect x="18" y="105" width="164" height="5" fill="#d9b886" stroke="#4a4543" strokeWidth="0.4" />
+          {Array.from({ length: 8 }).map((_, i) => {
+            const x = 22 + i * 20;
+            return (
+              <g key={i}>
+                <line x1={x} y1="53" x2={x + 10} y2="105" stroke="#c5a06b" strokeWidth="2.4" />
+                <line x1={x + 10} y1="105" x2={x + 20} y2="53" stroke="#c5a06b" strokeWidth="2.4" />
+              </g>
+            );
+          })}
+          <line x1="20" y1="50" x2="20" y2="108" stroke="#c5a06b" strokeWidth="2.4" />
+          <line x1="180" y1="50" x2="180" y2="108" stroke="#c5a06b" strokeWidth="2.4" />
+        </g>
+      )}
+
+      {!isIJoist && !isTruss && (
+        <text x="100" y="82" fontSize="7" fill="#9b9286" textAnchor="middle">
+          select a floor system
+        </text>
+      )}
+
+      <text x="100" y="150" fontSize="7.5" fill="#7a7158" textAnchor="middle">
+        {isIJoist ? "Engineered I-joists" : isTruss ? "Open-web floor trusses" : "I-joists / trusses"}
+      </text>
+    </svg>
+  );
+}
+
+function FramingDetailSketch({ answers }: { answers: QuizAnswers }) {
+  const wall = ans(answers, "exteriorWall");
+  const sheath = ans(answers, "sheathing");
+  const floorSystem = ans(answers, "floorSystem");
+  return (
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">Framing details</p>
+      <ViewCard title="Exterior wall — plan detail (looking down)">
+        <WallPlanDetail wall={wall} sheath={sheath} insulated={false} exteriorFoam={false} />
+      </ViewCard>
+      <div className="grid grid-cols-2 gap-3">
+        <ViewCard title="Sheathing">
+          <SheathingPanelDetail sheath={sheath} />
+        </ViewCard>
+        <ViewCard title="Floor system">
+          <FloorSystemDetail floorSystem={floorSystem} />
+        </ViewCard>
+      </div>
+      <p className="text-xs text-stone-400 leading-relaxed">
+        Architect-style details — the wall thickness, sheathing panels, and floor system update as
+        you make each selection.
+      </p>
+    </div>
+  );
+}
+
+/** Interior elevation of a stud bay — drywall removed, cavities battable. */
+function WallInteriorInsulationDetail({ insulated, rValue }: { insulated: boolean; rValue: string }) {
+  const studs = [30, 72, 114, 156];
+  const sw = 10;
+  const studTop = 34;
+  const studBot = 126;
+  const bays: React.ReactNode[] = [];
+  for (let i = 0; i < studs.length - 1; i++) {
+    const bx = studs[i] + sw;
+    const bw = studs[i + 1] - bx;
+    bays.push(
+      <g key={i}>
+        {insulated && <Batt x={bx} y={studTop} w={bw} h={studBot - studTop} />}
+        <rect x={bx} y={studTop} width={bw} height={studBot - studTop} fill="none" stroke="#4a4543" strokeWidth="0.3" />
+      </g>
+    );
+  }
+  return (
+    <svg viewBox="0 0 200 160" className="w-full h-auto">
+      <rect x="0" y="0" width="200" height="160" fill="#fafaf7" />
+      <text x="100" y="16" fontSize="6" fill="#9b9286" textAnchor="middle">
+        interior face · drywall removed to show cavities
+      </text>
+      {/* top & bottom plates */}
+      <rect x="24" y="24" width="152" height="10" fill="#c5a06b" stroke="#4a4543" strokeWidth="0.4" />
+      <rect x="24" y="126" width="152" height="10" fill="#c5a06b" stroke="#4a4543" strokeWidth="0.4" />
+      {bays}
+      {/* studs */}
+      {studs.map((sx) => (
+        <rect key={sx} x={sx} y={studTop} width={sw} height={studBot - studTop} fill="#d9b886" stroke="#4a4543" strokeWidth="0.4" />
+      ))}
+      <text x="100" y="150" fontSize="7.5" fill="#7a7158" textAnchor="middle">
+        {insulated ? `Cavities filled · ${rValue} batt` : "select interior wall insulation"}
+      </text>
+    </svg>
+  );
+}
+
+/** Close-up of roof trusses with attic insulation; depth grows with R-value. */
+function AtticInsulationDetail({ rValue }: { rValue: string }) {
+  const chosen = rValue !== "";
+  const depth = rValue === "R-60" ? 50 : rValue === "R-50" ? 42 : rValue === "R-38" ? 32 : 26;
+  const ceil = 120;
+  const top = ceil - depth;
+  return (
+    <svg viewBox="0 0 200 160" className="w-full h-auto">
+      <defs>
+        <clipPath id="atticClip">
+          <polygon points="22,120 100,30 178,120" />
+        </clipPath>
+      </defs>
+      <rect x="0" y="0" width="200" height="160" fill="#fafaf7" />
+      {/* ceiling drywall */}
+      <rect x="22" y="120" width="156" height="5" fill="#f0ece3" stroke="#4a4543" strokeWidth="0.3" />
+      {/* attic insulation, clipped to the truss profile */}
+      {chosen && (
+        <g clipPath="url(#atticClip)">
+          <Batt x={18} y={top} w={164} h={depth} />
+        </g>
+      )}
+      {/* roof truss: top chords, bottom chord, webs */}
+      <line x1="20" y1="120" x2="100" y2="28" stroke="#c5a06b" strokeWidth="3" />
+      <line x1="180" y1="120" x2="100" y2="28" stroke="#c5a06b" strokeWidth="3" />
+      <line x1="20" y1="120" x2="180" y2="120" stroke="#c5a06b" strokeWidth="3" />
+      <line x1="100" y1="28" x2="100" y2="120" stroke="#c5a06b" strokeWidth="1.4" />
+      <line x1="100" y1="28" x2="60" y2="120" stroke="#c5a06b" strokeWidth="1.4" />
+      <line x1="100" y1="28" x2="140" y2="120" stroke="#c5a06b" strokeWidth="1.4" />
+      <text x="100" y="150" fontSize="7.5" fill="#7a7158" textAnchor="middle">
+        {chosen ? `Attic insulation · ${rValue}` : "select attic insulation"}
+      </text>
+    </svg>
+  );
+}
+
+function InsulationDetailSketch({ answers }: { answers: QuizAnswers }) {
+  const wallIns = ans(answers, "interiorWallInsulation");
+  const extIns = ans(answers, "exteriorInsulation");
+  const atticIns = ans(answers, "atticInsulation");
+  const wall = ans(answers, "exteriorWall");
+  const sheath = ans(answers, "sheathing");
+  const insulated = wallIns !== "";
+  const exteriorFoam = extIns === "Yes";
+  return (
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">Insulation details</p>
+      <ViewCard title="Wall cavity — interior view">
+        <WallInteriorInsulationDetail insulated={insulated} rValue={wallIns} />
+      </ViewCard>
+      <div className="grid grid-cols-2 gap-3">
+        <ViewCard title="Exterior wall — plan detail">
+          <WallPlanDetail wall={wall} sheath={sheath} insulated={insulated} exteriorFoam={exteriorFoam} />
+        </ViewCard>
+        <ViewCard title="Attic / roof trusses">
+          <AtticInsulationDetail rValue={atticIns} />
+        </ViewCard>
+      </div>
+      <p className="text-xs text-stone-400 leading-relaxed">
+        The stud cavities fill with batt insulation as you choose an R-value;{" "}
+        {exteriorFoam
+          ? "a continuous rigid-foam layer wraps the OSB beyond"
+          : "turn on exterior insulation to add a continuous foam layer over the OSB"}
+        , and the attic fills deeper as its R-value rises.
       </p>
     </div>
   );
