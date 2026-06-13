@@ -23,6 +23,16 @@ const HouseViewer = dynamic(() => import("../three/HouseViewer"), {
   ),
 });
 
+const FramingDetails3D = dynamic(
+  () => import("../three/DetailModels").then((m) => m.FramingDetails3D),
+  { ssr: false }
+);
+
+const InsulationDetails3D = dynamic(
+  () => import("../three/DetailModels").then((m) => m.InsulationDetails3D),
+  { ssr: false }
+);
+
 interface Props {
   group: QuizGroup;
   sectionId: string;
@@ -156,6 +166,33 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
             Drag to orbit · scroll to zoom · the skeleton rebuilds as you make selections.
           </span>
         </p>
+      )}
+
+      {sectionId === "framing" && (
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.15em] text-stone-400">3D details</p>
+          <FramingDetails3D params={params} sheathingChosen={framingView.sheathingChosen} />
+          <p className="text-xs text-stone-300 leading-relaxed">
+            The same wall and floor details as the sketch tab, in 3D — drag to orbit each one.
+          </p>
+        </div>
+      )}
+
+      {sectionId === "insulation" && (
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.15em] text-stone-400">3D details</p>
+          <InsulationDetails3D
+            params={params}
+            insulated={ans(answers, "interiorWallInsulation") !== ""}
+            exteriorFoam={ans(answers, "exteriorInsulation") === "Yes"}
+            rAttic={ans(answers, "atticInsulation")}
+            sheathingChosen={framingView.sheathingChosen}
+          />
+          <p className="text-xs text-stone-300 leading-relaxed">
+            Stud cavities fill with batt as you pick an R-value, a foam layer wraps the OSB when
+            exterior insulation is on, and the attic deepens with its R-value — drag to orbit each.
+          </p>
+        </div>
       )}
 
       {stage === "complete" && (
