@@ -245,10 +245,14 @@ function SiteAnalysisReport({ answers }: { answers: QuizAnswers }) {
     insights.push("Steep lot — plan on an engineered foundation, retaining walls, and a walkout basement on the downhill side.");
   }
 
-  if (slopeDir.includes("rear")) {
+  // slopeDir is a compass bearing (N/E/S/W); read it relative to the front.
+  const rel = relativeSlopeDir(facing, slopeDir);
+  if (rel === "rear") {
     insights.push("Falling toward the rear is ideal for a walkout basement and keeps water moving away from the entry.");
-  } else if (slopeDir.includes("street")) {
+  } else if (rel === "front") {
     insights.push("Falling toward the street drains well, but check the driveway grade — keep it under ~10%.");
+  } else if (rel === "left" || rel === "right") {
+    insights.push(`Cross-slope falling to the ${rel} — grade water around the house toward the low corner and keep the foundation drained.`);
   }
 
   if (soil.startsWith("Clay")) {
@@ -738,6 +742,19 @@ function multiAns(answers: QuizAnswers, id: string): string[] {
   const v = answers[id];
   if (Array.isArray(v)) return v;
   return [];
+}
+
+/** Compass slope bearing → direction relative to the house front. */
+function relativeSlopeDir(facing: string, slopeCompass: string): "front" | "rear" | "left" | "right" | "" {
+  const order = ["North", "East", "South", "West"];
+  const fi = order.indexOf(facing);
+  const si = order.indexOf(slopeCompass);
+  if (fi < 0 || si < 0) return "";
+  const rel = (si - fi + 4) % 4;
+  if (rel === 0) return "front";
+  if (rel === 2) return "rear";
+  if (rel === 1) return "right";
+  return "left";
 }
 
 function facadeColor(answers: QuizAnswers): string {

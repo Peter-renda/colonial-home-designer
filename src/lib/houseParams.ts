@@ -121,6 +121,30 @@ function ceilingFt(v: string, fallback: number): number {
   return fallback;
 }
 
+/** Derive an area-equivalent square side (ft) from a "W x D" dimensions string. */
+function lotSideFromDimensions(v: string): number {
+  const m = (v ?? "").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
+  if (m) {
+    const w = parseFloat(m[1]);
+    const d = parseFloat(m[2]);
+    if (w > 0 && d > 0) return Math.min(Math.max(Math.sqrt(w * d), 50), 300);
+  }
+  return 120; // sensible default lot square
+}
+
+/** Convert a compass slope bearing into a direction relative to the front. */
+function relativeSlopeDirection(facing: string, slopeCompass: string): SlopeDirection {
+  const order = ["North", "East", "South", "West"];
+  const fi = order.indexOf(facing);
+  const si = order.indexOf(slopeCompass);
+  if (fi < 0 || si < 0) return "rear";
+  const rel = (si - fi + 4) % 4;
+  if (rel === 0) return "front";
+  if (rel === 2) return "rear";
+  if (rel === 1) return "right";
+  return "left";
+}
+
 export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
   const facadeRaw = ans(answers, "facade");
   const paint = ans(answers, "exteriorPaint");
@@ -194,14 +218,11 @@ export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
       : slopeRaw.startsWith("Gentle")
         ? "gentle"
         : "flat";
+  // Slope direction is captured as a compass bearing (N/E/S/W). Convert it to
+  // a direction relative to the house front (which faces `streetFacing`).
+  const facingRaw = ans(answers, "streetFacing");
   const slopeDirRaw = ans(answers, "slopeDirection");
-  const slopeDir: SlopeDirection = slopeDirRaw.includes("street")
-    ? "front"
-    : slopeDirRaw.includes("rear")
-      ? "rear"
-      : slopeDirRaw.includes("left")
-        ? "left"
-        : "right";
+  const slopeDir: SlopeDirection = relativeSlopeDirection(facingRaw, slopeDirRaw);
   const treesRaw = ans(answers, "treeCoverage");
   const trees: TreeCoverage = treesRaw.startsWith("Heavily")
     ? "wooded"
@@ -210,17 +231,7 @@ export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
       : treesRaw.startsWith("Scattered")
         ? "scattered"
         : "open";
-  const lotRaw = ans(answers, "lotSize");
-  const acres = lotRaw.startsWith("Over 2")
-    ? 2.5
-    : lotRaw.startsWith("1 –")
-      ? 1.5
-      : lotRaw.startsWith("1/2")
-        ? 0.75
-        : lotRaw.startsWith("1/4")
-          ? 0.375
-          : 0.22;
-  const lotSideFt = Math.min(Math.sqrt(acres * 43560), 300);
+  const lotSideFt = lotSideFromDimensions(ans(answers, "lotDimensions"));
   const topo = ans(answers, "topoMap");
 
   // ── foundation detail ──

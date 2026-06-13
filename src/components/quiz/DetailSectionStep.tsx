@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { QuizSection, QuizAnswers, QuizQuestion } from "../../types/quiz";
+import { ArchitecturalStyle, QuizSection, QuizAnswers, QuizQuestion } from "../../types/quiz";
 import { GROUP_LABELS, isQuestionVisible } from "../../data/quizSections";
 import { QUESTION_INFO } from "../../data/questionInfo";
+import { recommendationFor, OptionRecommendation } from "../../data/styleRecommendations";
 import SketchPanel from "./SketchPanel";
 
 interface Props {
@@ -13,9 +14,54 @@ interface Props {
   groupIndex: number;
   groupTotal: number;
   answers: QuizAnswers;
+  recommendedStyle: ArchitecturalStyle;
+  budget: string;
   onChange: (id: string, value: string | string[]) => void;
   onNext: () => void;
   onBack: () => void;
+}
+
+/** Parse a stored dimensions string like "120 x 200" into width/depth. */
+function parseDimensions(v: string): { w: string; d: string } {
+  const m = (v ?? "").match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
+  if (m) return { w: m[1], d: m[2] };
+  const lead = (v ?? "").match(/^\s*(\d+(?:\.\d+)?)/);
+  return { w: lead ? lead[1] : "", d: "" };
+}
+
+/** Small badge that surfaces the style/budget recommendation for an option. */
+function RecommendationHint({
+  rec,
+  selected,
+  onApply,
+}: {
+  rec: OptionRecommendation;
+  selected: boolean;
+  onApply: () => void;
+}) {
+  const star = rec.kind === "style" ? "★" : "◆";
+  if (selected) {
+    return (
+      <p className="mt-1.5 text-[11px] text-stone-500 flex items-center gap-1.5">
+        <span className="text-amber-500">{star}</span>
+        <span className="uppercase tracking-wider">{rec.reason}</span>
+      </p>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onApply}
+      className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800 transition-colors group/rec"
+      title={`Use "${rec.value}"`}
+    >
+      <span className="text-amber-500">{star}</span>
+      <span>
+        Recommended: <span className="font-medium text-stone-700 group-hover/rec:underline">{rec.value}</span>
+        <span className="text-stone-400"> — {rec.reason}. Tap to use.</span>
+      </span>
+    </button>
+  );
 }
 
 /** "i" icon + popover with a short educational blurb about the item. */
@@ -142,6 +188,8 @@ export default function DetailSectionStep({
   groupIndex,
   groupTotal,
   answers,
+  recommendedStyle,
+  budget,
   onChange,
   onNext,
   onBack,
@@ -194,6 +242,52 @@ export default function DetailSectionStep({
             <div className="space-y-6">
               {visibleQuestions.map((q) => {
                 const value = answers[q.id];
+                const rec = recommendationFor(q.id, recommendedStyle, budget);
+
+                if (q.type === "dimensions") {
+                  const { w, d } = parseDimensions((value as string) ?? "");
+                  function setDim(nextW: string, nextD: string) {
+                    const wv = nextW.trim();
+                    const dv = nextD.trim();
+                    onChange(q.id, wv || dv ? `${wv} x ${dv}` : "");
+                  }
+                  return (
+                    <div key={q.id}>
+                      <label className="block text-sm font-medium text-stone-700 mb-1">
+                        {q.label}
+                        <InfoTip questionId={q.id} label={q.label} />
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center border border-stone-200 bg-white focus-within:border-stone-500 transition-colors">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            value={w}
+                            onChange={(e) => setDim(e.target.value, d)}
+                            placeholder="Width"
+                            className="w-24 px-3 py-2.5 text-sm text-stone-800 placeholder-stone-300 focus:outline-none bg-transparent"
+                          />
+                          <span className="px-1 text-xs text-stone-400">ft</span>
+                        </div>
+                        <span className="text-stone-400">×</span>
+                        <div className="flex items-center border border-stone-200 bg-white focus-within:border-stone-500 transition-colors">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            value={d}
+                            onChange={(e) => setDim(w, e.target.value)}
+                            placeholder="Depth"
+                            className="w-24 px-3 py-2.5 text-sm text-stone-800 placeholder-stone-300 focus:outline-none bg-transparent"
+                          />
+                          <span className="px-1 text-xs text-stone-400">ft</span>
+                        </div>
+                      </div>
+                      <p className="mt-1 text-[11px] text-stone-400">
+                        Width along the street × depth front-to-back.
+                      </p>
+                    </div>
+                  );
+                }
 
                 if (q.type === "file") {
                   return (
@@ -222,21 +316,31 @@ export default function DetailSectionStep({
                       <div className="flex flex-wrap gap-2">
                         {(q.options ?? []).map((opt) => {
                           const active = selected.includes(opt);
+                          const isRec = rec?.value === opt;
                           return (
                             <button
                               key={opt}
                               onClick={() => toggleMulti(q.id, opt)}
-                              className={`px-4 py-2 text-sm border transition-all ${
+                              className={`relative px-4 py-2 text-sm border transition-all ${
                                 active
                                   ? "border-stone-700 bg-stone-800 text-white"
-                                  : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
+                                  : isRec
+                                    ? "border-amber-400 bg-amber-50 text-stone-700"
+                                    : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"
                               }`}
                             >
+                              {isRec && <span className="mr-1 text-amber-500">{rec?.kind === "style" ? "★" : "◆"}</span>}
                               {opt}
                             </button>
                           );
                         })}
                       </div>
+                      {rec && (
+                        <p className="mt-1.5 text-[11px] text-stone-400">
+                          <span className="text-amber-500">{rec.kind === "style" ? "★" : "◆"}</span>{" "}
+                          {rec.value} — {rec.reason}.
+                        </p>
+                      )}
                     </div>
                   );
                 }
@@ -269,16 +373,25 @@ export default function DetailSectionStep({
                     <select
                       value={(value as string) ?? ""}
                       onChange={(e) => onChange(q.id, e.target.value)}
-                      className="w-full border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:border-stone-500 transition-colors appearance-none"
+                      className={`w-full border bg-white px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:border-stone-500 transition-colors appearance-none ${
+                        rec && rec.value === (value as string) ? "border-amber-400" : "border-stone-200"
+                      }`}
                       style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a8a29e' d='M6 8L1 3h10z'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
                     >
                       <option value="">— Select —</option>
                       {(q.options ?? []).map((opt) => (
                         <option key={opt} value={opt}>
-                          {opt}
+                          {opt === rec?.value ? `★ ${opt}  (recommended)` : opt}
                         </option>
                       ))}
                     </select>
+                    {rec && (
+                      <RecommendationHint
+                        rec={rec}
+                        selected={rec.value === (value as string)}
+                        onApply={() => onChange(q.id, rec.value)}
+                      />
+                    )}
                   </div>
                 );
               })}

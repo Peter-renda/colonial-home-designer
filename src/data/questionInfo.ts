@@ -44,14 +44,18 @@ export const QUESTION_INFO: Record<string, string> = {
   // ── site analysis ─────────────────────────────────────────────
   topoMap:
     "A topographic (contour) map or boundary survey shows your lot's shape, elevations, and slopes. We use it to orient the house, set the foundation type, and plan drainage. A surveyor or your county GIS site can provide one.",
-  lotSize:
-    "Lot size drives setbacks, septic field placement, driveway length, and landscaping budget. Larger lots give siting flexibility but cost more to clear, grade, and maintain.",
+  lotDimensions:
+    "Enter the lot's width (along the street) and depth. Dimensions — not just acreage — determine how the house fits between the setbacks, where the driveway lands, and how much yard is left front and back. A wide, shallow lot designs very differently from a narrow, deep one.",
+  siteAddress:
+    "Optional. We use your address only to look up the latitude for the sun-path study — how high the sun climbs and how long the days run on your land. Nothing is stored or shared.",
+  siteCoordinates:
+    "Optional. If you know your latitude and longitude (from a survey, plat, or a map pin), enter them as 'lat, long'. We use the latitude to compute the sun's path across your site. Coordinates override the address lookup.",
   streetFacing:
     "Orientation controls natural light. A south-facing front gets all-day sun on the facade; a north-facing front means the rear porch and kitchen get the southern sun. East = morning light in front rooms; west = strong afternoon sun (plan shading).",
   lotSlope:
     "Slope is the single biggest site cost factor. Flat lots suit slab foundations; moderate slopes often favor crawlspaces or walkout basements; steep lots need engineered foundations, retaining walls, and more excavation.",
   slopeDirection:
-    "Which way the land falls decides where water goes and where a walkout basement could daylight. Sloping toward the street helps drainage but can make the driveway steep; sloping to the rear suits a walkout basement.",
+    "The compass direction the land falls toward (where water naturally runs downhill). This decides where water goes and where a walkout basement could daylight — we read it together with the direction your home faces to plan grading and drainage.",
   soilType:
     "Soil determines how the foundation is engineered. Sandy soils drain well; expansive clay swells and shrinks (needs deeper or reinforced footings); rock near the surface makes basements expensive; fill soil must be compacted or excavated. A geotechnical (soils) test removes the guesswork.",
   drainage:
