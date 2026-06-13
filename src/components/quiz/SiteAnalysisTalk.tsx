@@ -36,79 +36,137 @@ function parseLatitude(raw: string): number | null {
   return null;
 }
 
-// ── speech synthesis hook (browser Web Speech API) ──────────────
-function useSpeech(sections: string[]) {
-  const [supported, setSupported] = useState(false);
+// ── ElevenLabs narration hook (server route /api/tts) ───────────
+// Fetches an MP3 per section from our ElevenLabs-backed route and plays
+// them in sequence through a single <audio> element. Audio is cached by
+// the section text so re-listening (or replaying after a pause) is instant.
+function useElevenLabsNarration(sections: string[]) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(-1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const cacheRef = useRef<Map<string, string>>(new Map());
   const idxRef = useRef(0);
   const cancelledRef = useRef(false);
+  const reqRef = useRef(0);
+  const sectionsRef = useRef(sections);
+  sectionsRef.current = sections;
 
   useEffect(() => {
-    setSupported(typeof window !== "undefined" && "speechSynthesis" in window);
+    const audio = new Audio();
+    audioRef.current = audio;
+    const cache = cacheRef.current;
     return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      cancelledRef.current = true;
+      audio.pause();
+      audio.src = "";
+      cache.forEach((url) => URL.revokeObjectURL(url));
+      cache.clear();
     };
   }, []);
 
-  function speakFrom(index: number) {
-    if (!("speechSynthesis" in window)) return;
-    if (index >= sections.length) {
+  async function fetchAudioUrl(text: string): Promise<string> {
+    const cached = cacheRef.current.get(text);
+    if (cached) return cached;
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      let msg = `narration failed (${res.status})`;
+      try {
+        const data = await res.json();
+        if (data?.error) msg = data.error;
+      } catch {
+        // non-JSON error body — keep the status message
+      }
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    cacheRef.current.set(text, url);
+    return url;
+  }
+
+  async function playFrom(index: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (index >= sectionsRef.current.length) {
       setPlaying(false);
       setCurrent(-1);
+      idxRef.current = 0;
       return;
     }
+    cancelledRef.current = false;
     idxRef.current = index;
     setCurrent(index);
-    const u = new SpeechSynthesisUtterance(sections[index]);
-    u.rate = 0.96;
-    u.pitch = 1;
-    u.onend = () => {
+    setPlaying(true);
+    setError(null);
+    setLoading(true);
+    const token = ++reqRef.current;
+    try {
+      const url = await fetchAudioUrl(sectionsRef.current[index]);
+      if (cancelledRef.current || token !== reqRef.current) return;
+      audio.src = url;
+      audio.onended = () => {
+        if (cancelledRef.current) return;
+        playFrom(idxRef.current + 1);
+      };
+      await audio.play();
+    } catch (e) {
       if (cancelledRef.current) return;
-      speakFrom(index + 1);
-    };
-    window.speechSynthesis.speak(u);
+      setError(e instanceof Error ? e.message : "narration failed");
+      setPlaying(false);
+      setCurrent(-1);
+    } finally {
+      if (token === reqRef.current) setLoading(false);
+    }
   }
 
   function play() {
-    if (!("speechSynthesis" in window)) return;
-    cancelledRef.current = false;
-    if (window.speechSynthesis.paused && window.speechSynthesis.speaking) {
-      window.speechSynthesis.resume();
+    const audio = audioRef.current;
+    if (!audio) return;
+    // resume if we paused part-way through a section
+    if (audio.src && audio.paused && audio.currentTime > 0 && !audio.ended && current >= 0) {
+      cancelledRef.current = false;
       setPlaying(true);
+      audio.play().catch(() => {});
       return;
     }
-    window.speechSynthesis.cancel();
-    setPlaying(true);
-    speakFrom(playing || current >= 0 ? idxRef.current : 0);
+    playFrom(current >= 0 ? idxRef.current : 0);
   }
 
   function pause() {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.pause();
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
     setPlaying(false);
   }
 
   function stop() {
-    if (!("speechSynthesis" in window)) return;
+    const audio = audioRef.current;
     cancelledRef.current = true;
-    window.speechSynthesis.cancel();
+    reqRef.current++; // invalidate any in-flight fetch
+    if (audio) {
+      audio.pause();
+      audio.onended = null;
+    }
     setPlaying(false);
     setCurrent(-1);
+    setLoading(false);
     idxRef.current = 0;
   }
 
   function playSection(index: number) {
-    if (!("speechSynthesis" in window)) return;
-    cancelledRef.current = false;
-    window.speechSynthesis.cancel();
-    setPlaying(true);
-    speakFrom(index);
+    const audio = audioRef.current;
+    if (audio) audio.pause();
+    playFrom(index);
   }
 
-  return { supported, playing, current, play, pause, stop, playSection };
+  return { playing, current, loading, error, play, pause, stop, playSection };
 }
 
 export default function SiteAnalysisTalk({ answers, recommendedStyle, onContinue, onBack }: Props) {
@@ -151,7 +209,7 @@ export default function SiteAnalysisTalk({ answers, recommendedStyle, onContinue
     [answers, recommendedStyle, latitude]
   );
 
-  const speech = useSpeech(narration.sections.map((s) => s.body));
+  const speech = useElevenLabsNarration(narration.sections.map((s) => s.body));
 
   // Stop narration if the user leaves the screen.
   useEffect(() => () => speech.stop(), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -186,37 +244,38 @@ export default function SiteAnalysisTalk({ answers, recommendedStyle, onContinue
         </p>
 
         {/* voice controls */}
-        <div className="flex flex-wrap items-center gap-3 mb-8">
-          {speech.supported ? (
-            <>
-              {!speech.playing ? (
-                <button
-                  onClick={speech.play}
-                  className="inline-flex items-center gap-2 bg-stone-800 text-white px-6 py-3 text-sm uppercase tracking-[0.15em] hover:bg-stone-700 transition-colors"
-                >
-                  ► Play narration
-                </button>
-              ) : (
-                <button
-                  onClick={speech.pause}
-                  className="inline-flex items-center gap-2 bg-stone-800 text-white px-6 py-3 text-sm uppercase tracking-[0.15em] hover:bg-stone-700 transition-colors"
-                >
-                  ❚❚ Pause
-                </button>
-              )}
+        <div className="mb-8">
+          <div className="flex flex-wrap items-center gap-3">
+            {!speech.playing ? (
               <button
-                onClick={speech.stop}
-                className="text-sm text-stone-400 hover:text-stone-600 uppercase tracking-[0.15em] transition-colors"
+                onClick={speech.play}
+                disabled={speech.loading}
+                className="inline-flex items-center gap-2 bg-stone-800 text-white px-6 py-3 text-sm uppercase tracking-[0.15em] hover:bg-stone-700 transition-colors disabled:opacity-50"
               >
-                ■ Stop
+                {speech.loading ? "Generating voice…" : "► Play narration"}
               </button>
-              <span className="text-xs text-stone-400">A spoken AI walkthrough of your site.</span>
-            </>
-          ) : (
+            ) : (
+              <button
+                onClick={speech.pause}
+                className="inline-flex items-center gap-2 bg-stone-800 text-white px-6 py-3 text-sm uppercase tracking-[0.15em] hover:bg-stone-700 transition-colors"
+              >
+                ❚❚ Pause
+              </button>
+            )}
+            <button
+              onClick={speech.stop}
+              className="text-sm text-stone-400 hover:text-stone-600 uppercase tracking-[0.15em] transition-colors"
+            >
+              ■ Stop
+            </button>
             <span className="text-xs text-stone-400">
-              Spoken narration isn&rsquo;t supported in this browser — the full walkthrough is written
-              below.
+              An ElevenLabs AI voice walkthrough of your site.
             </span>
+          </div>
+          {speech.error && (
+            <p className="mt-2 text-xs text-rose-500">
+              Couldn&rsquo;t play narration: {speech.error}
+            </p>
           )}
         </div>
 
@@ -264,14 +323,12 @@ export default function SiteAnalysisTalk({ answers, recommendedStyle, onContinue
                     {active && <span className="text-stone-500 animate-pulse">🔊</span>}
                     {sec.heading}
                   </h3>
-                  {speech.supported && (
-                    <button
-                      onClick={() => speech.playSection(i)}
-                      className="text-[11px] text-stone-400 hover:text-stone-600 uppercase tracking-wider transition-colors"
-                    >
-                      ► Listen
-                    </button>
-                  )}
+                  <button
+                    onClick={() => speech.playSection(i)}
+                    className="text-[11px] text-stone-400 hover:text-stone-600 uppercase tracking-wider transition-colors"
+                  >
+                    ► Listen
+                  </button>
                 </div>
                 <p className="px-5 py-4 text-sm text-stone-600 leading-relaxed">{sec.body}</p>
               </div>
