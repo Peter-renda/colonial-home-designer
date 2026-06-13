@@ -2,7 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { BuildStage, HouseParams } from "../../lib/houseParams";
+import { BuildStage, FoundationView, FramingView, HouseParams } from "../../lib/houseParams";
 import HouseModel from "./HouseModel";
 import { SiteModel, FoundationModel, FramingModel } from "./ConstructionStages";
 
@@ -10,10 +10,18 @@ interface Props {
   params: HouseParams;
   /** Which construction stage to render. Defaults to the finished house. */
   stage?: BuildStage;
-  /** Foundation build step (0–4); only used when stage === "foundation". */
-  buildStep?: number;
+  /** Which foundation elements to reveal; only used when stage === "foundation". */
+  foundation?: FoundationView;
+  /** Which framing elements to reveal; only used when stage === "framing". */
+  framing?: FramingView;
   className?: string;
 }
+
+const DEFAULT_FOUNDATION_VIEW: FoundationView = {
+  typeChosen: true,
+  sideInsulation: false,
+  bottomInsulation: false,
+};
 
 const CAMERA: Record<BuildStage, { position: [number, number, number]; target: [number, number, number]; fog: [number, number] }> = {
   site: { position: [105, 80, 125], target: [0, 0, 0], fog: [320, 700] },
@@ -27,7 +35,7 @@ const CAMERA: Record<BuildStage, { position: [number, number, number]; target: [
  * scroll to zoom. Rebuilds in real time as quiz answers change, and can
  * render the site, foundation build, and framing stages.
  */
-export default function HouseViewer({ params, stage = "complete", buildStep = 4, className }: Props) {
+export default function HouseViewer({ params, stage = "complete", foundation, framing, className }: Props) {
   const cam = CAMERA[stage];
   return (
     <div className={className ?? "w-full h-full"}>
@@ -49,8 +57,10 @@ export default function HouseViewer({ params, stage = "complete", buildStep = 4,
           shadow-bias={-0.0004}
         />
         {stage === "site" && <SiteModel p={params} />}
-        {stage === "foundation" && <FoundationModel p={params} step={buildStep} />}
-        {stage === "framing" && <FramingModel p={params} />}
+        {stage === "foundation" && (
+          <FoundationModel p={params} sel={foundation ?? DEFAULT_FOUNDATION_VIEW} />
+        )}
+        {stage === "framing" && <FramingModel p={params} framing={framing} />}
         {stage === "complete" && <HouseModel params={params} />}
         <OrbitControls
           target={cam.target}

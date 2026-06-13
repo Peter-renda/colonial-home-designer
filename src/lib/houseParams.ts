@@ -54,6 +54,26 @@ export interface FramingDetail {
   floorSystem: "truss" | "ijoist";
 }
 
+/**
+ * Which foundation elements to reveal in the live 3D model. Unlike the raw
+ * params (which default to "slab"), this tracks whether the user has actually
+ * made a selection so the model can build up one choice at a time.
+ */
+export interface FoundationView {
+  /** A foundation type has been chosen — before this, only the site shows. */
+  typeChosen: boolean;
+  /** Perimeter rigid-foam insulation selected. */
+  sideInsulation: boolean;
+  /** Under-slab rigid-foam insulation selected. */
+  bottomInsulation: boolean;
+}
+
+/** Which framing elements to reveal in the live 3D model. */
+export interface FramingView {
+  /** Exterior sheathing has been chosen — adds OSB / Zip panels to the model. */
+  sheathingChosen: boolean;
+}
+
 export interface HouseParams {
   /** Front wall length (x axis), ft */
   widthFt: number;
@@ -324,6 +344,27 @@ export function paramsFromAnswers(answers: QuizAnswers): HouseParams {
       sheathing: ans(answers, "sheathing") === "7/16 OSB" ? "osb" : "zip",
       floorSystem: ans(answers, "floorSystem") === "I-joists" ? "ijoist" : "truss",
     },
+  };
+}
+
+/**
+ * Foundation reveal state, derived from the raw answers. Reading the raw
+ * answers (not the defaulted params) lets the model show only the site until
+ * the user actually picks a foundation type, then add each element as it's
+ * chosen.
+ */
+export function foundationViewFromAnswers(answers: QuizAnswers): FoundationView {
+  return {
+    typeChosen: ans(answers, "foundationType") !== "",
+    sideInsulation: ans(answers, "foundationSideInsulation") === "Yes",
+    bottomInsulation: ans(answers, "foundationBottomInsulation").startsWith("Yes"),
+  };
+}
+
+/** Framing reveal state, derived from the raw answers. */
+export function framingViewFromAnswers(answers: QuizAnswers): FramingView {
+  return {
+    sheathingChosen: ans(answers, "sheathing") !== "",
   };
 }
 
