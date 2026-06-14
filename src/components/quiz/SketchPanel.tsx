@@ -33,6 +33,15 @@ const InsulationDetails3D = dynamic(
   { ssr: false }
 );
 
+const RoomViewer = dynamic(() => import("../three/RoomModel"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center text-xs text-stone-400">
+      Loading room…
+    </div>
+  ),
+});
+
 interface Props {
   group: QuizGroup;
   sectionId: string;
@@ -66,7 +75,7 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
         ))}
       </div>
       {view === "model" ? (
-        <LiveModelPanel answers={answers} sectionId={sectionId} />
+        <LiveModelPanel answers={answers} sectionId={sectionId} group={group} sketchKey={sketchKey} />
       ) : (
         <LegacySketch group={group} sectionId={sectionId} sketchKey={sketchKey} answers={answers} />
       )}
@@ -82,9 +91,26 @@ function stageForSection(sectionId: string): BuildStage {
 }
 
 // ─── LIVE 3D MODEL — rebuilds as every answer changes ───────────
-function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionId: string }) {
+function LiveModelPanel({
+  answers,
+  sectionId,
+  group,
+  sketchKey,
+}: {
+  answers: QuizAnswers;
+  sectionId: string;
+  group: QuizGroup;
+  sketchKey?: string;
+}) {
   const params = useMemo(() => paramsFromAnswers(answers), [answers]);
   const stage = stageForSection(sectionId);
+
+  // Room sections show an interior of the room being configured, rather than
+  // the finished exterior. (whole-house keeps the full massing.)
+  const roomKey = group === "rooms" && sketchKey && sketchKey !== "whole-house" ? sketchKey : null;
+  if (roomKey) {
+    return <RoomModelPanel sketchKey={roomKey} answers={answers} />;
+  }
 
   // foundation/framing reveal state — drives which elements appear as the
   // user makes selections (the model builds itself up, not on a timer)
@@ -203,6 +229,38 @@ function LiveModelPanel({ answers, sectionId }: { answers: QuizAnswers; sectionI
           </span>
         </p>
       )}
+    </div>
+  );
+}
+
+const ROOM_LABELS: Record<string, string> = {
+  "first-floor": "First-floor flooring",
+  "second-floor": "Second-floor flooring",
+  staircase: "Staircase",
+  trim: "Trim",
+  "trim-by-room": "Trim",
+  "interior-door": "Interior doors",
+  kitchen: "Kitchen",
+  bath: "Bathroom",
+  "built-ins": "Built-ins",
+  lighting: "Lighting",
+};
+
+/** Interior room view shown for the "rooms" sections. */
+function RoomModelPanel({ sketchKey, answers }: { sketchKey: string; answers: QuizAnswers }) {
+  const label = ROOM_LABELS[sketchKey] ?? "Room";
+  return (
+    <div className="space-y-4">
+      <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
+        Your {label.toLowerCase()} — live 3D interior
+      </p>
+      <div className="bg-[#eceee8] border border-stone-200 w-full aspect-[4/3] overflow-hidden">
+        <RoomViewer sketchKey={sketchKey} answers={answers} />
+      </div>
+      <p className="text-xs text-stone-400 leading-relaxed">
+        A 3D view of your {label.toLowerCase()} — it updates as you make selections for this room.
+        <span className="block mt-1 text-stone-300">Drag to orbit · scroll to zoom.</span>
+      </p>
     </div>
   );
 }
