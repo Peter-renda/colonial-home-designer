@@ -1,19 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { ArchitecturalStyle, StyleScores } from "../../types/quiz";
 import StyleHouseCard from "./StyleHouseCard";
-
-/**
- * Picture-based style finder. The buyer is shown a gallery of colonial homes
- * and simply taps the ones they're drawn to. We tally the styles behind their
- * favorites to recommend a style — no jargon required.
- */
 
 interface GalleryHouse {
   id: string;
   style: ArchitecturalStyle;
   palette: keyof typeof PALETTE_KEYS;
+  photo?: string;
 }
 
 // just a typing helper so palette keys stay in sync with StyleHouseCard
@@ -21,9 +17,9 @@ const PALETTE_KEYS = { brick: 1, white: 1, cream: 1 } as const;
 
 // Interleaved so styles aren't visually grouped.
 const GALLERY: GalleryHouse[] = [
-  { id: "g1", style: "Georgian", palette: "brick" },
-  { id: "f1", style: "Federal", palette: "white" },
-  { id: "k1", style: "Greek Revival", palette: "white" },
+  { id: "g1", style: "Georgian", palette: "brick", photo: "/images/georgian.jpg" },
+  { id: "f1", style: "Federal", palette: "white", photo: "/images/federal.jpg" },
+  { id: "k1", style: "Greek Revival", palette: "white", photo: "/images/greek-revival.jpg" },
   { id: "f2", style: "Federal", palette: "cream" },
   { id: "k2", style: "Greek Revival", palette: "cream" },
   { id: "g2", style: "Georgian", palette: "white" },
@@ -103,7 +99,19 @@ export default function StyleQuizStep({ onComplete, onBack }: Props) {
                     : "border-stone-200 hover:border-stone-400 hover:shadow-sm"
                 }`}
               >
-                <StyleHouseCard style={house.style} palette={house.palette} className="w-full h-auto block" />
+                {house.photo ? (
+                  <div className="relative w-full" style={{ paddingBottom: "80.77%" }}>
+                    <Image
+                      src={house.photo}
+                      alt={`${house.style} colonial home`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                ) : (
+                  <StyleHouseCard style={house.style} palette={house.palette} className="w-full h-auto block" />
+                )}
                 {/* selection check */}
                 <div
                   className={`absolute top-3 right-3 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
