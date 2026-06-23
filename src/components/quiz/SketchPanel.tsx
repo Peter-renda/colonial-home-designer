@@ -50,7 +50,7 @@ interface Props {
 }
 
 export default function SketchPanel({ group, sectionId, sketchKey, answers }: Props) {
-  const [view, setView] = useState<"model" | "sketch">("model");
+  const [view, setView] = useState<"model" | "sketch" | "simulation">("model");
 
   return (
     <div className="space-y-3">
@@ -59,6 +59,7 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
           [
             ["model", "3D Model"],
             ["sketch", "Detail Sketch"],
+            ["simulation", "Project Simulation"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -76,9 +77,91 @@ export default function SketchPanel({ group, sectionId, sketchKey, answers }: Pr
       </div>
       {view === "model" ? (
         <LiveModelPanel answers={answers} sectionId={sectionId} group={group} sketchKey={sketchKey} />
-      ) : (
+      ) : view === "sketch" ? (
         <LegacySketch group={group} sectionId={sectionId} sketchKey={sketchKey} answers={answers} />
+      ) : (
+        <ProjectSimulationPanel />
       )}
+    </div>
+  );
+}
+
+const SIMULATION_ROLES = [
+  {
+    title: "Owner / Client",
+    status: "Available",
+    description: "Review the current selections from the homeowner perspective.",
+    available: true,
+  },
+  {
+    title: "Estimator",
+    status: "Available",
+    description: "Translate design choices into budget and material considerations.",
+    available: true,
+  },
+  {
+    title: "Superintendent",
+    status: "Coming soon",
+    description: "Site sequencing, field coordination, and buildability checks are coming soon.",
+    available: false,
+  },
+  {
+    title: "Project Accountant",
+    status: "Coming soon",
+    description: "Cost-code tracking, commitments, and draw reporting are coming soon.",
+    available: false,
+  },
+  {
+    title: "Preconstruction Manager",
+    status: "Coming soon",
+    description: "Early trade buyout, value engineering, and procurement planning are coming soon.",
+    available: false,
+  },
+];
+
+function ProjectSimulationPanel() {
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs uppercase tracking-[0.15em] text-stone-400">Project simulation</p>
+        <p className="text-xs text-stone-400 leading-relaxed mt-2">
+          Choose a project role to review this home from that point of view. Roles marked coming
+          soon are visible for planning, but they are not selectable yet.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {SIMULATION_ROLES.map((role) => (
+          <div key={role.title} className="relative group">
+            <button
+              type="button"
+              disabled={!role.available}
+              title={!role.available ? `${role.title} coming soon` : undefined}
+              className={`w-full h-full text-left border bg-white p-4 transition-colors ${
+                role.available
+                  ? "border-stone-200 hover:border-stone-500 cursor-pointer"
+                  : "border-stone-200 opacity-60 cursor-not-allowed"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-medium text-stone-800">{role.title}</h3>
+                <span
+                  className={`text-[10px] uppercase tracking-wider px-2 py-1 ${
+                    role.available ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400"
+                  }`}
+                >
+                  {role.status}
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 leading-relaxed mt-3">{role.description}</p>
+            </button>
+            {!role.available && (
+              <div className="pointer-events-none absolute left-4 right-4 top-3 -translate-y-full bg-stone-800 px-3 py-2 text-[11px] text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                {role.title} is coming soon.
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
